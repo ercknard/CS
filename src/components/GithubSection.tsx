@@ -35,6 +35,11 @@ interface GitHubEvent {
   created_at: string;
   payload: {
     action?: string;
+    member?: {
+      login?: string;
+      avatar_url?: string;
+      html_url?: string;
+    };
     commits?: Array<{
       message: string;
       sha?: string;
@@ -61,6 +66,7 @@ function getActivityDescription(event: GitHubEvent): string {
   switch (event.type) {
     case 'PushEvent': {
       const count = event.payload.commits?.length ?? 0;
+
       return `pushed ${count} commit${count === 1 ? '' : 's'}`;
     }
 
@@ -87,6 +93,19 @@ function getActivityDescription(event: GitHubEvent): string {
 
     case 'ReleaseEvent':
       return 'published a release';
+
+    case 'MemberEvent': {
+      const action = event.payload.action ?? 'updated';
+      const member = event.payload.member?.login;
+
+      return `${action} ${member ? `@${member}` : 'an organization member'}`;
+    }
+
+    case 'PublicEvent':
+      return 'made a repository public';
+
+    case 'GollumEvent':
+      return 'updated repository documentation';
 
     default:
       return event.type
@@ -151,17 +170,6 @@ function formatActivityDate(date: string): string {
   });
 }
 
-const SUPPORTED_EVENT_TYPES = [
-  'PushEvent',
-  'PullRequestEvent',
-  'IssuesEvent',
-  'IssueCommentEvent',
-  'CreateEvent',
-  'WatchEvent',
-  'ForkEvent',
-  'ReleaseEvent'
-];
-
 export default function GitHubSection() {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
@@ -185,8 +193,9 @@ export default function GitHubSection() {
       setLoading(true);
       setActivityError('');
 
-      const response = await fetch('/api/github/events?per_page=10', {
+      const response = await fetch('/api/github/events?per_page=100', {
         signal,
+        cache: 'no-store',
         headers: {
           Accept: 'application/json'
         }
@@ -196,15 +205,36 @@ export default function GitHubSection() {
 
       if (!response.ok) {
         throw new Error(
-          data?.error ??
+          data?.message ??
+            data?.error ??
             `Unable to load GitHub activity (HTTP ${response.status}).`
         );
       }
 
-      const events: GitHubEvent[] = Array.isArray(data) ? data : [];
+      if (!Array.isArray(data)) {
+        throw new Error(
+          data?.message ??
+            data?.error ??
+            'The GitHub API returned an invalid activity response.'
+        );
+      }
 
-      const recentEvents = events
-        .filter((event) => SUPPORTED_EVENT_TYPES.includes(event.type))
+      // Preserve every event returned by the organization API.
+      // Do not filter by event type or truncate the list.
+      const recentEvents = (data as GitHubEvent[])
+        .filter(
+          (event) =>
+            event &&
+            typeof event.id === 'string' &&
+            typeof event.type === 'string' &&
+            typeof event.created_at === 'string' &&
+            event.repo?.name &&
+            event.actor?.login
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
         .slice(0, 5);
 
       if (signal?.aborted) return;
@@ -235,7 +265,7 @@ export default function GitHubSection() {
 
   const profileUrl = username
     ? `https://github.com/${encodeURIComponent(username)}`
-    : 'https://github.com/';
+    : 'https://github.com/orgs/Cryptech-Services';
 
   return (
     <Box
@@ -537,7 +567,7 @@ export default function GitHubSection() {
             >
               <Button
                 component="a"
-                href={profileUrl}
+                href="https://github.com/orgs/Cryptech-Services"
                 target="_blank"
                 rel="noopener noreferrer"
                 variant="contained"
@@ -561,7 +591,7 @@ export default function GitHubSection() {
 
               <Button
                 component="a"
-                href={profileUrl}
+                href="https://github.com/orgs/Cryptech-Services"
                 target="_blank"
                 rel="noopener noreferrer"
                 variant="outlined"
@@ -593,7 +623,7 @@ export default function GitHubSection() {
               boxSizing: 'border-box',
               overflow: 'hidden',
               borderRadius: 3,
-              bgcolor: alpha(surface, isDark ? 1 : 1),
+              bgcolor: surface,
               borderColor: alpha(textSecondary, 0.18),
               backdropFilter: 'blur(12px)'
             }}
@@ -632,7 +662,7 @@ export default function GitHubSection() {
 
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontWeight: 750 }}>
-                    Recent activity
+                    Organization activity
                   </Typography>
                   <Typography
                     variant="caption"
@@ -642,8 +672,7 @@ export default function GitHubSection() {
                       overflowWrap: 'anywhere'
                     }}
                   >
-                    {username ? `@${username}` : 'GitHub activity'} · Public
-                    events
+                    Cryptech-Services · Public events
                   </Typography>
                 </Box>
               </Stack>
@@ -681,7 +710,7 @@ export default function GitHubSection() {
 
                 <Button
                   component="a"
-                  href={profileUrl}
+                  href="https://github.com/orgs/Cryptech-Services"
                   target="_blank"
                   rel="noopener noreferrer"
                   size="small"
@@ -692,7 +721,7 @@ export default function GitHubSection() {
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  View profile
+                  View organization
                 </Button>
               </Stack>
             </Stack>
@@ -702,7 +731,7 @@ export default function GitHubSection() {
               <Stack spacing={2} sx={{ py: 6, px: 2, alignItems: 'center' }}>
                 <CircularProgress size={28} />
                 <Typography variant="body2" sx={{ color: textSecondary }}>
-                  Loading GitHub activity…
+                  Loading organization activity…
                 </Typography>
               </Stack>
             )}
@@ -747,12 +776,12 @@ export default function GitHubSection() {
                   }}
                 />
                 <Typography sx={{ color: textSecondary, textAlign: 'center' }}>
-                  No recent public activity found.
+                  No recent public organization activity found.
                 </Typography>
               </Stack>
             )}
 
-            {/* Activity entries */}
+            {/* All activity entries returned by the API */}
             {activities.length > 0 && (
               <Stack
                 divider={
@@ -765,7 +794,7 @@ export default function GitHubSection() {
               >
                 {activities.map((event) => (
                   <Stack
-                    key={event.id}
+                    key={`${event.id}-${event.repo.name}`}
                     direction="row"
                     spacing={2}
                     sx={{
@@ -802,6 +831,18 @@ export default function GitHubSection() {
                         <Box component="span" sx={{ color: textSecondary }}>
                           {getActivityDescription(event)}
                         </Box>
+                      </Typography>
+
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'block',
+                          mt: 0.5,
+                          color: textSecondary,
+                          overflowWrap: 'anywhere'
+                        }}
+                      >
+                        {event.repo.name}
                       </Typography>
 
                       <MuiLink
@@ -851,7 +892,7 @@ export default function GitHubSection() {
               </Stack>
             )}
 
-            {/* Refreshing indicator when previous results exist */}
+            {/* Refreshing indicator */}
             {loading && activities.length > 0 && (
               <Box
                 sx={{
