@@ -109,14 +109,13 @@ function SectionDivider() {
           background: `linear-gradient(90deg, transparent, ${alpha(primary, 0.5)}, ${alpha(secondary, 0.5)}, transparent)`
         },
         '&::after': {
-          content: '""',
+          content: '"❖"',
           position: 'absolute',
           width: 6,
           height: 6,
-          top: 'calc(50% - 3px)',
+          top: 'calc(50% - 11px)',
           left: '50%',
-          borderRadius: '50%',
-          backgroundColor: primary,
+          color: primary,
           boxShadow: `0 0 14px ${alpha(primary, isDark ? 0.65 : 0.35)}`
         }
       }}

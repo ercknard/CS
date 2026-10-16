@@ -230,8 +230,7 @@ export default async function handler(
     });
 
     const eventsData = (await eventsResponse.json()) as
-      | GitHubEvent[]
-      | GitHubApiError;
+      GitHubEvent[] | GitHubApiError;
 
     if (!eventsResponse.ok) {
       const message =
