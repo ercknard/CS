@@ -6,6 +6,7 @@ import {
   Avatar,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Container,
@@ -14,6 +15,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControlLabel,
   IconButton,
   InputAdornment,
   MenuItem,
@@ -48,7 +50,6 @@ import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
-import TableChartRoundedIcon from '@mui/icons-material/TableChartRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded';
@@ -70,6 +71,8 @@ import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 
 type JsonRecord = Record<string, unknown>;
+
+type FormFieldType = 'text' | 'number' | 'boolean' | 'json';
 
 type AdminTable = {
   name: string;
@@ -221,6 +224,68 @@ function getDisplayColumns(rows: JsonRecord[]): string[] {
   });
 
   return Array.from(columns);
+}
+
+function getFormFieldType(value: unknown): FormFieldType {
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'number') return 'number';
+
+  if (typeof value === 'object' && value !== null) {
+    return 'json';
+  }
+
+  return 'text';
+}
+
+function getFormFieldValue(value: unknown, fieldType: FormFieldType): unknown {
+  if (fieldType === 'json') {
+    if (value === null || value === undefined || value === '') return '';
+
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return '';
+    }
+  }
+
+  if (fieldType === 'boolean') {
+    return value === true;
+  }
+
+  if (value === null || value === undefined) return '';
+
+  return String(value);
+}
+
+function getInitialFormRecord(
+  rows: JsonRecord[],
+  mode: EditorState['mode'],
+  primaryKey: string
+): {
+  record: JsonRecord;
+  fieldTypes: Record<string, FormFieldType>;
+} {
+  const record: JsonRecord = {};
+  const fieldTypes: Record<string, FormFieldType> = {};
+
+  if (mode === 'edit' || rows.length === 0) {
+    return { record, fieldTypes };
+  }
+
+  const firstRow = rows[0];
+
+  Object.entries(firstRow).forEach(([key, value]) => {
+    // Let the database generate the primary key for new records.
+    if (key === primaryKey) return;
+
+    const fieldType = getFormFieldType(value);
+
+    fieldTypes[key] = fieldType;
+    record[key] =
+      fieldType === 'boolean' ? false : fieldType === 'json' ? '' : '';
+  });
+
+  return { record, fieldTypes };
 }
 
 function AdminStat({
@@ -420,8 +485,12 @@ function AdminDashboard() {
   const [pageSize, setPageSize] = React.useState(10);
 
   const [editor, setEditor] = React.useState<EditorState | null>(null);
-  const [editorText, setEditorText] = React.useState('{}');
   const [editorError, setEditorError] = React.useState('');
+  const [fieldTypes, setFieldTypes] = React.useState<
+    Record<string, FormFieldType>
+  >({});
+  const [newFieldName, setNewFieldName] = React.useState('');
+  const [newFieldType, setNewFieldType] = React.useState<FormFieldType>('text');
 
   const [deleteTarget, setDeleteTarget] = React.useState<JsonRecord | null>(
     null
@@ -528,6 +597,8 @@ function AdminDashboard() {
     setNotice('');
     setEditor(null);
     setEditorError('');
+    setFieldTypes({});
+    setNewFieldName('');
     setDeleteTarget(null);
     setSidebarOpen(false);
   };
@@ -541,16 +612,36 @@ function AdminDashboard() {
   };
 
   const openCreateDialog = () => {
-    setEditor({ mode: 'create', record: {} });
-    setEditorText('{}');
+    const initial = getInitialFormRecord(
+      rows,
+      'create',
+      activeTable.primaryKey
+    );
+
+    setEditor({ mode: 'create', record: initial.record });
+    setFieldTypes(initial.fieldTypes);
+    setNewFieldName('');
+    setNewFieldType('text');
     setEditorError('');
     setError('');
     setNotice('');
   };
 
   const openEditDialog = (record: JsonRecord) => {
-    setEditor({ mode: 'edit', record });
-    setEditorText(JSON.stringify(record, null, 2));
+    const recordForForm: JsonRecord = {};
+    const types: Record<string, FormFieldType> = {};
+
+    Object.entries(record).forEach(([key, value]) => {
+      const type = getFormFieldType(value);
+
+      types[key] = type;
+      recordForForm[key] = getFormFieldValue(value, type);
+    });
+
+    setEditor({ mode: 'edit', record: recordForForm });
+    setFieldTypes(types);
+    setNewFieldName('');
+    setNewFieldType('text');
     setEditorError('');
     setError('');
     setNotice('');
@@ -561,6 +652,74 @@ function AdminDashboard() {
 
     setEditor(null);
     setEditorError('');
+    setFieldTypes({});
+    setNewFieldName('');
+  };
+
+  const updateEditorField = (key: string, value: unknown) => {
+    setEditor((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        record: {
+          ...current.record,
+          [key]: value
+        }
+      };
+    });
+  };
+
+  const addEditorField = () => {
+    if (!editor) return;
+
+    const key = newFieldName.trim();
+
+    if (!key) {
+      setEditorError('Enter a column name before adding a field.');
+      return;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(editor.record, key)) {
+      setEditorError(`The field "${key}" already exists.`);
+      return;
+    }
+
+    if (key === activeTable.primaryKey && editor.mode === 'edit') {
+      setEditorError('The primary key cannot be added as an editable field.');
+      return;
+    }
+
+    let initialValue: unknown = '';
+
+    if (newFieldType === 'boolean') {
+      initialValue = false;
+    }
+
+    if (newFieldType === 'json') {
+      initialValue = '';
+    }
+
+    setEditor((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        record: {
+          ...current.record,
+          [key]: initialValue
+        }
+      };
+    });
+
+    setFieldTypes((current) => ({
+      ...current,
+      [key]: newFieldType
+    }));
+
+    setNewFieldName('');
+    setNewFieldType('text');
+    setEditorError('');
   };
 
   const saveRecord = async () => {
@@ -570,30 +729,68 @@ function AdminDashboard() {
     setError('');
     setNotice('');
 
-    let parsedRecord: JsonRecord;
+    const parsedRecord: JsonRecord = {};
 
     try {
-      const parsed: unknown = JSON.parse(editorText);
+      for (const [key, rawValue] of Object.entries(editor.record)) {
+        const fieldType = fieldTypes[key] ?? 'text';
 
-      if (
-        parsed === null ||
-        Array.isArray(parsed) ||
-        typeof parsed !== 'object'
-      ) {
-        throw new Error('The record must be a JSON object.');
+        // The primary key is shown as read-only when editing.
+        if (editor.mode === 'edit' && key === activeTable.primaryKey) {
+          continue;
+        }
+
+        if (fieldType === 'boolean') {
+          parsedRecord[key] = rawValue === true;
+          continue;
+        }
+
+        if (fieldType === 'number') {
+          if (rawValue === '' || rawValue === null || rawValue === undefined) {
+            parsedRecord[key] = null;
+          } else {
+            const numericValue = Number(rawValue);
+
+            if (!Number.isFinite(numericValue)) {
+              throw new Error(`"${key}" must be a valid number.`);
+            }
+
+            parsedRecord[key] = numericValue;
+          }
+
+          continue;
+        }
+
+        if (fieldType === 'json') {
+          if (rawValue === '' || rawValue === null || rawValue === undefined) {
+            parsedRecord[key] = null;
+          } else if (typeof rawValue !== 'string') {
+            parsedRecord[key] = rawValue;
+          } else {
+            try {
+              parsedRecord[key] = JSON.parse(rawValue) as unknown;
+            } catch {
+              throw new Error(
+                `"${key}" must contain valid JSON. Check its syntax.`
+              );
+            }
+          }
+
+          continue;
+        }
+
+        parsedRecord[key] = rawValue === undefined ? null : rawValue;
       }
-
-      parsedRecord = parsed as JsonRecord;
     } catch (caught) {
       setEditorError(
-        caught instanceof Error ? caught.message : 'Enter valid JSON.'
+        caught instanceof Error ? caught.message : 'Check the form values.'
       );
       return;
     }
 
     if (Object.keys(parsedRecord).length === 0) {
       setEditorError(
-        'Enter at least one field. Required fields depend on your table schema.'
+        'Add at least one editable field. Required fields depend on your table schema.'
       );
       return;
     }
@@ -608,7 +805,6 @@ function AdminDashboard() {
 
         if (insertError) throw insertError;
 
-        // Record successful creation in the edit history.
         addHistoryEntry(
           'CREATE',
           activeTable.name,
@@ -626,21 +822,17 @@ function AdminDashboard() {
           );
         }
 
-        const updateRecord = { ...parsedRecord };
-        delete updateRecord[activeTable.primaryKey];
-
-        if (Object.keys(updateRecord).length === 0) {
+        if (Object.keys(parsedRecord).length === 0) {
           throw new Error('No editable fields were provided.');
         }
 
         const { error: updateError } = await supabase
           .from(activeTable.name)
-          .update(updateRecord)
+          .update(parsedRecord)
           .eq(activeTable.primaryKey, primaryKeyValue);
 
         if (updateError) throw updateError;
 
-        // Record successful update in the edit history.
         addHistoryEntry(
           'UPDATE',
           activeTable.name,
@@ -651,6 +843,8 @@ function AdminDashboard() {
         setNotice('Record updated successfully.');
       }
 
+      setFieldTypes({});
+      setNewFieldName('');
       await loadRows();
     } catch (caught) {
       setEditorError(
@@ -686,7 +880,6 @@ function AdminDashboard() {
 
       if (deleteError) throw deleteError;
 
-      // Record successful deletion in the edit history.
       addHistoryEntry('DELETE', activeTable.name, primaryKeyValue);
 
       setDeleteTarget(null);
@@ -2319,9 +2512,9 @@ function AdminDashboard() {
 
         <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
           <Alert severity="info" sx={{ mb: 2.5, borderRadius: 2.5 }}>
-            Edit this record as JSON. Use valid JSON syntax and match your
-            database column names exactly. Omit generated fields when creating
-            records if the database supplies them automatically.
+            {editor?.mode === 'create'
+              ? 'Fill in the fields for your new record. Field names must match your database column names exactly. Generated fields, such as an automatically generated ID, are omitted.'
+              : 'Update the fields you want to change. The primary key is read-only and will not be updated.'}
           </Alert>
 
           {editorError && (
@@ -2330,65 +2523,276 @@ function AdminDashboard() {
             </Alert>
           )}
 
-          <TextField
-            fullWidth
-            multiline
-            minRows={14}
-            maxRows={28}
-            value={editorText}
-            onChange={(event) => setEditorText(event.target.value)}
-            spellCheck={false}
-            placeholder={'{\n  "name": "Example"\n}'}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                alignItems: 'flex-start',
-                borderRadius: 2.5
-              },
-              '& textarea': {
-                fontFamily: '"Cascadia Code", "Fira Code", monospace',
-                fontSize: 13,
-                lineHeight: 1.75,
-                tabSize: 2
-              }
-            }}
-          />
+          {editor && (
+            <Stack spacing={2.25}>
+              {Object.entries(editor.record).map(([key, value]) => {
+                const fieldType = fieldTypes[key] ?? 'text';
+                const isPrimaryKey =
+                  key === activeTable.primaryKey && editor.mode === 'edit';
 
-          <Stack
-            direction="row"
-            sx={{
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              mt: 1.5
-            }}
-            spacing={1}
-          >
-            <Typography variant="caption" color="text.secondary">
-              Primary key: {activeTable.primaryKey}
-            </Typography>
+                return (
+                  <Box key={key}>
+                    {fieldType === 'boolean' ? (
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2.5,
+                          borderColor: 'divider'
+                        }}
+                      >
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={value === true}
+                              onChange={(event) =>
+                                updateEditorField(key, event.target.checked)
+                              }
+                              disabled={saving || isPrimaryKey}
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 800 }}
+                              >
+                                {key}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Boolean · {value === true ? 'True' : 'False'}
+                              </Typography>
+                            </Box>
+                          }
+                          sx={{ ml: 0, mr: 0 }}
+                        />
+                      </Paper>
+                    ) : fieldType === 'json' ? (
+                      <TextField
+                        fullWidth
+                        multiline
+                        minRows={4}
+                        maxRows={12}
+                        label={key}
+                        value={typeof value === 'string' ? value : ''}
+                        onChange={(event) =>
+                          updateEditorField(key, event.target.value)
+                        }
+                        disabled={saving || isPrimaryKey}
+                        spellCheck={false}
+                        placeholder={'{\n  "example": "value"\n}'}
+                        helperText={
+                          isPrimaryKey
+                            ? 'Primary key — read-only'
+                            : 'Enter a valid JSON object, array, string, number, boolean, or null.'
+                        }
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            alignItems: 'flex-start',
+                            borderRadius: 2.5
+                          },
+                          '& textarea': {
+                            fontFamily:
+                              '"Cascadia Code", "Fira Code", monospace',
+                            fontSize: 13,
+                            lineHeight: 1.75,
+                            tabSize: 2
+                          }
+                        }}
+                      />
+                    ) : (
+                      <TextField
+                        fullWidth
+                        label={key}
+                        value={
+                          value === null || value === undefined
+                            ? ''
+                            : String(value)
+                        }
+                        onChange={(event) =>
+                          updateEditorField(key, event.target.value)
+                        }
+                        disabled={saving || isPrimaryKey}
+                        type={fieldType === 'number' ? 'number' : 'text'}
+                        multiline={
+                          fieldType === 'text' && String(value).length > 100
+                        }
+                        minRows={
+                          fieldType === 'text' && String(value).length > 100
+                            ? 3
+                            : undefined
+                        }
+                        slotProps={{
+                          htmlInput:
+                            fieldType === 'number' ? { step: 'any' } : undefined
+                        }}
+                        helperText={
+                          isPrimaryKey
+                            ? 'Primary key — read-only'
+                            : fieldType === 'number'
+                              ? 'Number'
+                              : undefined
+                        }
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2.5
+                          }
+                        }}
+                      />
+                    )}
+                  </Box>
+                );
+              })}
 
-            <Button
-              size="small"
-              startIcon={<CodeRoundedIcon />}
-              onClick={() => {
-                try {
-                  setEditorText(
-                    JSON.stringify(JSON.parse(editorText), null, 2)
-                  );
-                  setEditorError('');
-                } catch {
-                  setEditorError(
-                    'JSON formatting failed. Check the syntax before formatting.'
-                  );
-                }
-              }}
-              sx={{
-                textTransform: 'none',
-                fontWeight: 750
-              }}
-            >
-              Format JSON
-            </Button>
-          </Stack>
+              {Object.keys(editor.record).length === 0 && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2.5,
+                    borderStyle: 'dashed',
+                    textAlign: 'center'
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 800 }}>
+                    No fields added yet
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.75 }}
+                  >
+                    Add a field below using an exact column name from your
+                    Supabase table.
+                  </Typography>
+                </Paper>
+              )}
+
+              <Divider />
+
+              <Box>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ mb: 1.25, fontWeight: 900 }}
+                >
+                  Add field
+                </Typography>
+
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1.25}
+                  sx={{ alignItems: { xs: 'stretch', sm: 'flex-start' } }}
+                >
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Column name"
+                    placeholder="e.g. display_name"
+                    value={newFieldName}
+                    onChange={(event) => setNewFieldName(event.target.value)}
+                    disabled={saving}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        addEditorField();
+                      }
+                    }}
+                    sx={{
+                      flex: 1,
+                      '& .MuiOutlinedInput-root': { borderRadius: 2.5 }
+                    }}
+                  />
+
+                  <TextField
+                    select
+                    size="small"
+                    label="Field type"
+                    value={newFieldType}
+                    onChange={(event) =>
+                      setNewFieldType(event.target.value as FormFieldType)
+                    }
+                    disabled={saving}
+                    sx={{
+                      minWidth: { xs: '100%', sm: 150 },
+                      '& .MuiOutlinedInput-root': { borderRadius: 2.5 }
+                    }}
+                  >
+                    <MenuItem value="text">Text</MenuItem>
+                    <MenuItem value="number">Number</MenuItem>
+                    <MenuItem value="boolean">Boolean</MenuItem>
+                    <MenuItem value="json">JSON</MenuItem>
+                  </TextField>
+
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddRoundedIcon />}
+                    onClick={addEditorField}
+                    disabled={saving}
+                    sx={{
+                      minHeight: 40,
+                      borderRadius: 2.5,
+                      textTransform: 'none',
+                      fontWeight: 800,
+                      flexShrink: 0
+                    }}
+                  >
+                    Add field
+                  </Button>
+                </Stack>
+
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mt: 1 }}
+                >
+                  Only add columns that actually exist in the selected database
+                  table. The database will reject unknown column names.
+                </Typography>
+              </Box>
+
+              {Object.keys(editor.record).length > 0 && (
+                <Stack direction="row" sx={{ justifyContent: 'flex-end' }}>
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={() => {
+                      setEditor((current) => {
+                        if (!current) return current;
+
+                        const nextRecord = { ...current.record };
+                        const nextTypes = { ...fieldTypes };
+
+                        Object.keys(nextRecord).forEach((key) => {
+                          if (
+                            key !== activeTable.primaryKey ||
+                            current.mode !== 'edit'
+                          ) {
+                            delete nextRecord[key];
+                            delete nextTypes[key];
+                          }
+                        });
+
+                        setFieldTypes(nextTypes);
+
+                        return {
+                          ...current,
+                          record: nextRecord
+                        };
+                      });
+                      setEditorError('');
+                    }}
+                    disabled={saving}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Clear editable fields
+                  </Button>
+                </Stack>
+              )}
+            </Stack>
+          )}
         </DialogContent>
 
         <DialogActions
@@ -2405,7 +2809,7 @@ function AdminDashboard() {
           <Button
             variant="contained"
             onClick={() => void saveRecord()}
-            disabled={saving}
+            disabled={saving || !editor}
             startIcon={
               saving ? (
                 <CircularProgress size={16} color="inherit" />
