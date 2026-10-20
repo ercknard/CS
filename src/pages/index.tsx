@@ -9,7 +9,8 @@ import {
   Stack,
   Typography,
   Paper,
-  Divider
+  Divider,
+  GlobalStyles
 } from '@mui/material';
 
 import { alpha, useTheme } from '@mui/material/styles';
@@ -367,35 +368,66 @@ export default function Home() {
   const [sectionsLoaded, setSectionsLoaded] = React.useState(false);
 
   /**
-   * Initialize AOS once and refresh when page content changes.
+   * Initialize AOS on desktop only.
+   *
+   * Reinitialize it when crossing the 1024px breakpoint so resizing
+   * between desktop and mobile/tablet updates the animation behavior.
    */
   React.useEffect(() => {
-    const prefersReducedMotion = window.matchMedia(
+    const desktopQuery = window.matchMedia('(min-width: 1024px)');
+    const reducedMotionQuery = window.matchMedia(
       '(prefers-reduced-motion: reduce)'
     );
 
-    AOS.init({
-      duration: 800,
-      easing: 'ease-out-cubic',
-      once: true,
-      offset: 80,
-      delay: 0,
-      anchorPlacement: 'top-bottom',
-      disable: () => prefersReducedMotion.matches
-    });
+    const initializeAOS = () => {
+      const shouldDisableAOS =
+        !desktopQuery.matches || reducedMotionQuery.matches;
 
-    AOS.refreshHard();
+      if (shouldDisableAOS) {
+        AOS.init({
+          disable: true,
+          duration: 0,
+          once: true
+        });
+      } else {
+        AOS.init({
+          disable: false,
+          duration: 800,
+          easing: 'ease-out-cubic',
+          once: true,
+          offset: 80,
+          delay: 0,
+          anchorPlacement: 'top-bottom'
+        });
+
+        AOS.refreshHard();
+      }
+    };
+
+    initializeAOS();
+
+    desktopQuery.addEventListener('change', initializeAOS);
+    reducedMotionQuery.addEventListener('change', initializeAOS);
 
     return () => {
-      // Do not globally destroy AOS because other components may use it.
+      desktopQuery.removeEventListener('change', initializeAOS);
+      reducedMotionQuery.removeEventListener('change', initializeAOS);
     };
   }, []);
 
   /**
    * Refresh AOS after Supabase section visibility has been loaded.
+   * Only refresh on desktop when motion is allowed.
    */
   React.useEffect(() => {
     if (!sectionsLoaded) return;
+
+    const desktopQuery = window.matchMedia('(min-width: 1024px)');
+    const reducedMotionQuery = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    );
+
+    if (!desktopQuery.matches || reducedMotionQuery.matches) return;
 
     const frame = window.requestAnimationFrame(() => {
       AOS.refreshHard();
@@ -406,6 +438,9 @@ export default function Home() {
     };
   }, [sectionsLoaded, sectionVisibility]);
 
+  /**
+   * Load homepage section visibility from Supabase.
+   */
   React.useEffect(() => {
     let isMounted = true;
 
@@ -497,6 +532,48 @@ export default function Home() {
         />
         <meta name="theme-color" content={background} />
       </Head>
+
+      {/* Global overflow and mobile/tablet AOS safeguards */}
+      <GlobalStyles
+        styles={{
+          html: {
+            width: '100%',
+            maxWidth: '100%',
+            overflowX: 'clip'
+          },
+          body: {
+            width: '100%',
+            maxWidth: '100%',
+            overflowX: 'clip'
+          },
+          '#__next': {
+            width: '100%',
+            maxWidth: '100%',
+            overflowX: 'clip'
+          },
+          '@media (max-width: 1023.95px)': {
+            '[data-aos]': {
+              opacity: '1 !important',
+              transform: 'none !important',
+              transition: 'none !important',
+              pointerEvents: 'auto'
+            },
+            '[data-aos] *': {
+              transitionDelay: '0ms !important'
+            }
+          },
+          '@media (prefers-reduced-motion: reduce)': {
+            '[data-aos]': {
+              opacity: '1 !important',
+              transform: 'none !important',
+              transition: 'none !important'
+            },
+            '*, *::before, *::after': {
+              scrollBehavior: 'auto !important'
+            }
+          }
+        }}
+      />
 
       <Navbar onToggleTheme={toggleTheme} />
 

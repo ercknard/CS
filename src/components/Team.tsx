@@ -457,7 +457,8 @@ function TeamMemberModal({
             position: 'relative',
             px: { xs: 2.5, sm: 4 },
             pt: { xs: 2.5, sm: 3.5 },
-            pb: { xs: 2.5, sm: 3 }
+            pb: { xs: 2.5, sm: 3 },
+            display: { xs: 'none', lg: 'block' }
           }}
         >
           {/* Brand and close button */}
@@ -502,8 +503,8 @@ function TeamMemberModal({
               </Stack>
 
               <Typography
+                variant="h5"
                 sx={{
-                  fontSize: { xs: '1.75rem', sm: '2.4rem' },
                   fontWeight: 950,
                   lineHeight: 1,
                   letterSpacing: '-0.065em'
@@ -670,8 +671,8 @@ function TeamMemberModal({
 
               <Typography
                 id="team-member-dialog-title"
+                variant="h4"
                 sx={{
-                  fontSize: { xs: '2.2rem', sm: '3rem' },
                   fontWeight: 950,
                   lineHeight: 1,
                   letterSpacing: '-0.065em',
@@ -693,7 +694,6 @@ function TeamMemberModal({
               <Typography
                 sx={{
                   mt: 1.25,
-                  fontSize: { xs: '0.95rem', sm: '1.05rem' },
                   color: accent,
                   fontWeight: 800,
                   letterSpacing: '-0.015em'
@@ -787,6 +787,128 @@ function TeamMemberModal({
           '&:first-of-type': { pt: { xs: 2.5, sm: 3.5 } }
         }}
       >
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={{ xs: 2.5, sm: 3.5 }}
+          sx={{
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            display: { xs: 'block', lg: 'none' },
+            mb: 2
+          }}
+        >
+          <IconButton
+            onClick={onClose}
+            aria-label="Close member details"
+            sx={{
+              position: 'absolute',
+              right: 15,
+              top: 15,
+              flexShrink: 0,
+              color: 'text.primary',
+              bgcolor: alpha(theme.palette.background.paper, 0.7),
+              border: `1px solid ${panelBorder}`,
+              backdropFilter: 'blur(12px)',
+              borderRadius: 2,
+              '&:hover': {
+                color: accent,
+                bgcolor: theme.palette.background.paper,
+                borderColor: accent
+              }
+            }}
+          >
+            <CloseRoundedIcon />
+          </IconButton>
+
+          {/* Member information */}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Stack
+              direction="row"
+              useFlexGap
+              sx={{
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 1,
+                mb: 1.5
+              }}
+            >
+              <Chip
+                label={member.category}
+                size="small"
+                sx={{
+                  bgcolor: alpha(accent, 0.1),
+                  color: accent,
+                  border: `1px solid ${panelBorder}`,
+                  borderRadius: 1.25,
+                  fontWeight: 850,
+                  fontSize: '0.68rem'
+                }}
+              />
+
+              {member.availability && (
+                <Chip
+                  label={member.availability}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: theme.palette.divider,
+                    color: 'text.secondary',
+                    borderRadius: 1.25,
+                    fontWeight: 650,
+                    fontSize: '0.68rem'
+                  }}
+                />
+              )}
+            </Stack>
+
+            <Typography
+              id="team-member-dialog-title"
+              variant="h4"
+              sx={{
+                fontWeight: 950,
+                lineHeight: 1,
+                letterSpacing: '-0.065em',
+                overflowWrap: 'anywhere'
+              }}
+            >
+              {member.name}
+              <Box
+                component="span"
+                sx={{
+                  color: accent,
+                  textShadow: `0 0 24px ${alpha(accent, 0.2)}`
+                }}
+              >
+                .
+              </Box>
+            </Typography>
+
+            <Typography
+              sx={{
+                mt: 1.25,
+                color: accent,
+                fontWeight: 800,
+                letterSpacing: '-0.015em'
+              }}
+            >
+              {member.role}
+            </Typography>
+
+            {member.location && (
+              <Stack
+                direction="row"
+                spacing={0.75}
+                sx={{
+                  alignItems: 'center',
+                  mt: 1.5,
+                  color: 'text.secondary'
+                }}
+              >
+                <LocationOnOutlinedIcon sx={{ fontSize: 17 }} />
+                <Typography variant="body2">{member.location}</Typography>
+              </Stack>
+            )}
+          </Box>
+        </Stack>
         {/* Overview */}
         <Box sx={{ mb: 4 }}>
           <Stack

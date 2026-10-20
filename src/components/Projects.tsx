@@ -1064,6 +1064,7 @@ export default function Projects({
             {/* Gradient cover */}
             <Box
               sx={{
+                display: { xs: 'none', lg: 'block' },
                 position: 'relative',
                 minHeight: { xs: 190, sm: 270 },
                 overflow: 'hidden',
@@ -1291,7 +1292,7 @@ export default function Projects({
               sx={{
                 px: { xs: 2.5, sm: 4 },
                 py: 2.5,
-                display: 'flex',
+                display: { xs: 'none', lg: 'flex' },
                 alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
                 flexDirection: { xs: 'column', sm: 'row' },

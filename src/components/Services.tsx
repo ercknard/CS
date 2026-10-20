@@ -1514,7 +1514,7 @@ export default function Services({
                   overflow: 'hidden',
                   px: { xs: 2.5, sm: 4 },
                   pt: { xs: 3, sm: 4 },
-                  pb: 3.5,
+                  pb: { xs: 7, lg: 3.5 },
                   background: `linear-gradient(
             135deg,
             ${alpha(modalAccent, isDark ? 0.15 : 0.09)},
@@ -1573,12 +1573,9 @@ export default function Services({
                     <Typography
                       id="service-modal-title"
                       component="h2"
+                      variant="h2"
                       sx={{
                         maxWidth: 620,
-                        fontSize: {
-                          xs: '1.8rem',
-                          sm: '2.65rem'
-                        },
                         fontWeight: 850,
                         letterSpacing: '-0.055em',
                         lineHeight: 1.12,
@@ -1594,7 +1591,8 @@ export default function Services({
                         maxWidth: 650,
                         color: mutedColor,
                         fontSize: { xs: '0.9rem', sm: '1rem' },
-                        lineHeight: 1.85
+                        lineHeight: 1.85,
+                        display: { xs: 'none', lg: 'block' }
                       }}
                     >
                       {selectedService.description}
@@ -1624,6 +1622,7 @@ export default function Services({
                   <Stack
                     direction="row"
                     sx={{
+                      display: { xs: 'none', lg: 'block' },
                       position: 'relative',
                       zIndex: 1,
                       flexWrap: 'wrap',
