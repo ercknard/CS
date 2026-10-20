@@ -89,13 +89,13 @@ const navItems = [
     href: '/#team',
     section: 'team',
     icon: GroupsRoundedIcon
-  },
-  {
-    label: 'FAQs',
-    href: '/#faqs',
-    section: 'faqs',
-    icon: HelpOutlineRoundedIcon
   }
+  // {
+  //   label: 'FAQs',
+  //   href: '/#faqs',
+  //   section: 'faqs',
+  //   icon: HelpOutlineRoundedIcon
+  // }
 ];
 type ThemeKey = keyof typeof THEME_SETS;
 
@@ -836,72 +836,6 @@ export default function Navbar({ onToggleTheme }: NavbarProps) {
   /*
    * GitHub link renderer.
    */
-  const githubLink = (mobile = false) => (
-    <Button
-      component="a"
-      href={GITHUB_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      startIcon={<GitHubIcon />}
-      endIcon={mobile ? <ArrowOutwardRoundedIcon /> : undefined}
-      onClick={mobile ? closeMobileMenu : undefined}
-      aria-label="Visit Cryptech Services on GitHub"
-      sx={
-        mobile
-          ? {
-              justifyContent: 'flex-start',
-
-              minHeight: 48,
-              px: 1.5,
-
-              borderRadius: 1.5,
-
-              color: headingColor,
-
-              fontWeight: 700,
-              textTransform: 'none',
-
-              background: `linear-gradient(
-                135deg,
-                ${alpha(primary, 0.1)},
-                ${alpha(secondary, 0.06)}
-              )`,
-
-              border: `1px solid ${alpha(primary, 0.17)}`,
-
-              '& .MuiButton-startIcon': {
-                color: primary
-              },
-
-              '& .MuiButton-endIcon': {
-                ml: 'auto',
-                color: mutedColor
-              },
-
-              '&:hover': {
-                backgroundColor: alpha(primary, 0.12),
-                borderColor: alpha(primary, 0.35)
-              }
-            }
-          : {
-              ...navButtonSx(false),
-
-              px: { lg: 1, xl: 1.2 },
-
-              '& .MuiButton-startIcon': {
-                color: mutedColor,
-                mr: 0.55
-              },
-
-              '&:hover .MuiButton-startIcon': {
-                color: primary
-              }
-            }
-      }
-    >
-      GitHub
-    </Button>
-  );
 
   return (
     <>
@@ -995,7 +929,7 @@ export default function Navbar({ onToggleTheme }: NavbarProps) {
               component="nav"
               aria-label="Main navigation"
               direction="row"
-              spacing={{ lg: 0.15, xl: 2 }}
+              spacing={{ lg: 0.15, xl: 4 }}
               sx={{
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1005,7 +939,6 @@ export default function Navbar({ onToggleTheme }: NavbarProps) {
               }}
             >
               {renderNavItems()}
-              {githubLink()}
             </Stack>
           )}
 
@@ -1186,7 +1119,6 @@ export default function Navbar({ onToggleTheme }: NavbarProps) {
 
           <Stack component="nav" aria-label="Mobile navigation" spacing={0.75}>
             {renderNavItems(true)}
-            {githubLink(true)}
           </Stack>
 
           <Divider

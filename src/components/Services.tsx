@@ -10,11 +10,18 @@ import {
   Grid,
   Stack,
   Typography,
-  useTheme
+  useTheme,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Divider
 } from '@mui/material';
 
 import { alpha } from '@mui/material/styles';
 
+import { useMediaQuery } from '@mui/material';
 import ArrowOutwardRoundedIcon from '@mui/icons-material/ArrowOutwardRounded';
 import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
 import TokenRoundedIcon from '@mui/icons-material/TokenRounded';
@@ -22,6 +29,8 @@ import AccountTreeRoundedIcon from '@mui/icons-material/AccountTreeRounded';
 import WebRoundedIcon from '@mui/icons-material/WebRounded';
 import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
 import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 
 import {
   fetchServices,
@@ -626,7 +635,6 @@ function ServicesBackground({
           ry="250"
           fill="url(#services-ambient-glow)"
         />
-
         <ellipse
           className="services-glow-motion"
           cx="100"
@@ -655,7 +663,6 @@ function ServicesBackground({
           <path d="M246 0V62L282 98V142L324 184" />
           <path d="M72 800V748L112 708V660" />
           <path d="M302 800V750L338 714V676" />
-
           <path d="M1200 90H1110L1070 130H990L954 166H882" />
           <path d="M1200 170H1140L1098 212V270H1020L982 308H906" />
           <path d="M1200 330H1090L1050 290H974V246H906L870 210H820" />
@@ -667,7 +674,6 @@ function ServicesBackground({
           <path d="M954 0V60L918 96V140L876 182" />
           <path d="M1128 800V754L1088 714V668" />
           <path d="M898 800V752L862 716V674" />
-
           <path d="M340 0V54L376 90H460L496 126H550" />
           <path d="M650 0V44L614 80H564L530 114" />
           <path d="M470 800V742L510 702H586L620 668H680" />
@@ -857,6 +863,13 @@ export default function Services({
   const [loadError, setLoadError] = React.useState(false);
   const [retryKey, setRetryKey] = React.useState(0);
 
+  // Added: selected service for the details modal.
+  const [selectedService, setSelectedService] = React.useState<Service | null>(
+    null
+  );
+
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   React.useEffect(() => {
     if (providedServices !== undefined) {
       setSupabaseServices(providedServices);
@@ -908,6 +921,15 @@ export default function Services({
     '#F6B942',
     '#38BDF8'
   ];
+
+  const modalAccent = selectedService
+    ? accentColors[
+        Math.max(
+          0,
+          services.findIndex((service) => service.id === selectedService.id)
+        ) % accentColors.length
+      ]
+    : primary;
 
   return (
     <Box
@@ -1073,10 +1095,12 @@ export default function Services({
               return (
                 <Grid key={service.id} size={{ xs: 12, sm: 6, lg: 4 }}>
                   <Box
+                    onClick={() => setSelectedService(service)}
                     component="article"
                     sx={{
                       position: 'relative',
                       display: 'flex',
+                      cursor: 'pointer',
                       flexDirection: 'column',
                       height: '100%',
                       minHeight: { xs: 310, md: 335 },
@@ -1347,7 +1371,8 @@ export default function Services({
                         ))}
                       </Stack>
 
-                      <Button
+                      {/* Existing email inquiry button remains unchanged */}
+                      {/* <Button
                         className="service-arrow"
                         component="a"
                         href={`mailto:${email}?subject=${encodeURIComponent(
@@ -1373,7 +1398,31 @@ export default function Services({
                         }}
                       >
                         <ArrowOutwardRoundedIcon sx={{ fontSize: 20 }} />
-                      </Button>
+                      </Button> */}
+
+                      {/* Added: details button */}
+                      {/* <Button
+                        aria-label={`View details about ${service.title}`}
+                        title={`View details about ${service.title}`}
+                        sx={{
+                          flexShrink: 0,
+                          minWidth: 38,
+                          width: 38,
+                          height: 38,
+                          p: 0,
+                          borderRadius: '50%',
+                          color: accent,
+                          border: `1px solid ${alpha(accent, 0.6)}`,
+                          bgcolor: alpha(accent, 0.06),
+                          transition:
+                            'transform 220ms ease, color 220ms ease, background-color 220ms ease, border-color 220ms ease',
+                          '&:hover': {
+                            bgcolor: alpha(accent, 0.12)
+                          }
+                        }}
+                      >
+                        <SupportAgentRoundedIcon sx={{ fontSize: 20 }} />
+                      </Button> */}
                     </Stack>
                   </Box>
                 </Grid>
@@ -1410,7 +1459,669 @@ export default function Services({
             </Typography>
           </Box>
         )}
+
+        {/* Added: service details modal */}
+
+        <Dialog
+          open={selectedService !== null}
+          onClose={() => setSelectedService(null)}
+          fullWidth
+          fullScreen={isMobile}
+          maxWidth="md"
+          aria-labelledby="service-modal-title"
+          aria-describedby="service-modal-description"
+          scroll="paper"
+          slotProps={{
+            paper: {
+              sx: {
+                position: 'relative',
+                overflow: 'hidden',
+                borderRadius: { xs: 0, sm: '28px' },
+                border: isMobile
+                  ? 'none'
+                  : `1px solid ${alpha(modalAccent, 0.25)}`,
+                bgcolor: theme.secondaryScale?.[4],
+                backgroundImage: 'none',
+                boxShadow: isMobile
+                  ? 'none'
+                  : `0 30px 100px ${alpha('#000000', 0.3)}`,
+                height: isMobile ? '100%' : 'auto',
+                maxHeight: isMobile ? '100%' : 'calc(100% - 64px)'
+              }
+            }
+          }}
+        >
+          {selectedService && (
+            <>
+              {/* Accent line */}
+              <Box
+                aria-hidden="true"
+                sx={{
+                  height: 4,
+                  background: `linear-gradient(
+            90deg,
+            ${modalAccent},
+            ${alpha(modalAccent, 0.35)},
+            transparent
+          )`
+                }}
+              />
+
+              {/* Hero */}
+              <Box
+                sx={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  px: { xs: 2.5, sm: 4 },
+                  pt: { xs: 3, sm: 4 },
+                  pb: 3.5,
+                  background: `linear-gradient(
+            135deg,
+            ${alpha(modalAccent, isDark ? 0.15 : 0.09)},
+            ${alpha(modalAccent, 0.025)} 65%,
+            transparent
+          )`
+                }}
+              >
+                <Box
+                  aria-hidden="true"
+                  sx={{
+                    position: 'absolute',
+                    width: 220,
+                    height: 220,
+                    right: -90,
+                    top: -110,
+                    borderRadius: '50%',
+                    border: `1px solid ${alpha(modalAccent, 0.15)}`,
+                    boxShadow: `0 0 0 28px ${alpha(
+                      modalAccent,
+                      0.025
+                    )}, 0 0 0 58px ${alpha(modalAccent, 0.02)}`,
+                    pointerEvents: 'none'
+                  }}
+                />
+
+                <Stack
+                  direction="row"
+
+                  spacing={2}
+                  sx={{
+                    position: 'relative',
+                    zIndex: 1,
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <Stack spacing={2} sx={{ minWidth: 0, flex: 1 }}>
+                    <Chip
+                      size="small"
+                      label={`SERVICE ${String(selectedService.number).padStart(
+                        2,
+                        '0'
+                      )}`}
+                      sx={{
+                        alignSelf: 'flex-start',
+                        color: modalAccent,
+                        bgcolor: alpha(modalAccent, 0.1),
+                        border: `1px solid ${alpha(modalAccent, 0.3)}`,
+                        borderRadius: '8px',
+                        fontWeight: 800,
+                        letterSpacing: '0.12em'
+                      }}
+                    />
+
+                    <Typography
+                      id="service-modal-title"
+                      component="h2"
+                      sx={{
+                        maxWidth: 620,
+                        fontSize: {
+                          xs: '1.8rem',
+                          sm: '2.65rem'
+                        },
+                        fontWeight: 850,
+                        letterSpacing: '-0.055em',
+                        lineHeight: 1.12,
+                        overflowWrap: 'anywhere'
+                      }}
+                    >
+                      {selectedService.title}
+                    </Typography>
+
+                    <Typography
+                      id="service-modal-description"
+                      sx={{
+                        maxWidth: 650,
+                        color: mutedColor,
+                        fontSize: { xs: '0.9rem', sm: '1rem' },
+                        lineHeight: 1.85
+                      }}
+                    >
+                      {selectedService.description}
+                    </Typography>
+                  </Stack>
+
+                  <IconButton
+                    onClick={() => setSelectedService(null)}
+                    aria-label="Close service details"
+                    sx={{
+                      flexShrink: 0,
+                      bgcolor: alpha(theme.palette.text.primary, 0.04),
+                      border: `1px solid ${borderColor}`,
+                      borderRadius: '12px',
+                      '&:hover': {
+                        bgcolor: alpha(modalAccent, 0.12),
+                        color: modalAccent
+                      }
+                    }}
+                  >
+                    <CloseRoundedIcon />
+                  </IconButton>
+                </Stack>
+
+                {/* Service tags */}
+                {selectedService.tags.length > 0 && (
+                  <Stack
+                    direction="row"
+                    sx={{
+                      position: 'relative',
+                      zIndex: 1,
+                      flexWrap: 'wrap',
+                      gap: 1,
+                      mt: 3
+                    }}
+                  >
+                    {selectedService.tags.map((tag) => (
+                      <Chip
+                        key={tag}
+                        label={tag}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor: alpha(modalAccent, 0.25),
+                          color: theme.palette.text.primary,
+                          bgcolor: alpha(modalAccent, 0.045),
+                          borderRadius: '8px',
+                          fontWeight: 600
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+
+              <Divider sx={{ borderColor }} />
+
+              <DialogContent
+                sx={{
+                  px: { xs: 2.5, sm: 4 },
+                  py: { xs: 3, sm: 4 }
+                }}
+              >
+                {/* About */}
+                <Box sx={{ mb: 4 }}>
+                  <Typography
+                    sx={{
+                      mb: 1,
+                      color: modalAccent,
+                      fontSize: '0.7rem',
+                      fontWeight: 850,
+                      letterSpacing: '0.16em',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    Overview
+                  </Typography>
+
+                  <Typography
+                    component="h3"
+                    sx={{
+                      mb: 1.5,
+                      fontSize: { xs: '1.2rem', sm: '1.45rem' },
+                      fontWeight: 800,
+                      letterSpacing: '-0.035em'
+                    }}
+                  >
+                    Built around your goals
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      color: mutedColor,
+                      fontSize: '0.925rem',
+                      lineHeight: 1.95
+                    }}
+                  >
+                    {getServiceDetails(selectedService.title)}
+                  </Typography>
+                </Box>
+
+                {/* Deliverables and process */}
+                <Grid container spacing={2.5}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Box
+                      sx={{
+                        height: '100%',
+                        p: { xs: 2, sm: 2.5 },
+                        border: `1px solid ${borderColor}`,
+                        borderRadius: '18px',
+                        bgcolor: alpha(theme.palette.text.primary, 0.018)
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1.25}
+
+                        sx={{ mb: 2.5, alignItems: 'center' }}
+                      >
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            placeItems: 'center',
+                            width: 38,
+                            height: 38,
+                            flexShrink: 0,
+                            borderRadius: '12px',
+                            color: modalAccent,
+                            bgcolor: alpha(modalAccent, 0.12)
+                          }}
+                        >
+                          <CheckCircleOutlineRoundedIcon />
+                        </Box>
+
+                        <Box>
+                          <Typography
+                            component="h3"
+                            sx={{ fontWeight: 800, fontSize: '0.98rem' }}
+                          >
+                            What you get
+                          </Typography>
+                          <Typography
+                            sx={{ color: mutedColor, fontSize: '0.75rem' }}
+                          >
+                            Scope and deliverables
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      <Stack spacing={1.75}>
+                        {getServiceDeliverables(selectedService.title).map(
+                          (item) => (
+                            <Stack
+                              key={item}
+                              direction="row"
+                              spacing={1.25}
+                              sx={{ alignItems: 'flex-start' }}
+                            >
+                              <CheckCircleOutlineRoundedIcon
+                                sx={{
+                                  mt: '3px',
+                                  flexShrink: 0,
+                                  fontSize: 17,
+                                  color: modalAccent
+                                }}
+                              />
+
+                              <Typography
+                                sx={{
+                                  color: mutedColor,
+                                  fontSize: '0.85rem',
+                                  lineHeight: 1.8
+                                }}
+                              >
+                                {item}
+                              </Typography>
+                            </Stack>
+                          )
+                        )}
+                      </Stack>
+                    </Box>
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Box
+                      sx={{
+                        height: '100%',
+                        p: { xs: 2, sm: 2.5 },
+                        border: `1px solid ${borderColor}`,
+                        borderRadius: '18px',
+                        bgcolor: alpha(theme.palette.text.primary, 0.018)
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1.25}
+
+                        sx={{ mb: 2.5, alignItems: 'center' }}
+                      >
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            placeItems: 'center',
+                            width: 38,
+                            height: 38,
+                            flexShrink: 0,
+                            borderRadius: '12px',
+                            color: modalAccent,
+                            bgcolor: alpha(modalAccent, 0.12)
+                          }}
+                        >
+                          <ArrowOutwardRoundedIcon />
+                        </Box>
+
+                        <Box>
+                          <Typography
+                            component="h3"
+                            sx={{ fontWeight: 800, fontSize: '0.98rem' }}
+                          >
+                            Our approach
+                          </Typography>
+                          <Typography
+                            sx={{ color: mutedColor, fontSize: '0.75rem' }}
+                          >
+                            From planning to delivery
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      <Stack spacing={2}>
+                        {getServiceProcess(selectedService.title).map(
+                          (item, index) => (
+                            <Stack
+                              key={item}
+                              direction="row"
+                              spacing={1.5}
+                              sx={{ alignItems: 'flex-start' }}
+                            >
+                              <Box
+                                sx={{
+                                  display: 'grid',
+                                  placeItems: 'center',
+                                  flexShrink: 0,
+                                  width: 27,
+                                  height: 27,
+                                  borderRadius: '9px',
+                                  bgcolor: alpha(modalAccent, 0.12),
+                                  color: modalAccent,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 850
+                                }}
+                              >
+                                {String(index + 1).padStart(2, '0')}
+                              </Box>
+
+                              <Typography
+                                sx={{
+                                  pt: '3px',
+                                  color: mutedColor,
+                                  fontSize: '0.85rem',
+                                  lineHeight: 1.8
+                                }}
+                              >
+                                {item}
+                              </Typography>
+                            </Stack>
+                          )
+                        )}
+                      </Stack>
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Closing message */}
+                <Box
+                  sx={{
+                    mt: 3,
+                    p: { xs: 2, sm: 2.5 },
+                    borderRadius: '16px',
+                    border: `1px solid ${alpha(modalAccent, 0.22)}`,
+                    background: `linear-gradient(
+              120deg,
+              ${alpha(modalAccent, isDark ? 0.1 : 0.07)},
+              transparent
+            )`
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontWeight: 750,
+                      fontSize: '0.925rem',
+                      mb: 0.5
+                    }}
+                  >
+                    Have a project in mind?
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      color: mutedColor,
+                      fontSize: '0.85rem',
+                      lineHeight: 1.8
+                    }}
+                  >
+                    Tell us what you are planning, and we can discuss the right
+                    approach for your project.
+                  </Typography>
+                </Box>
+              </DialogContent>
+
+              {/* Footer actions */}
+              <DialogActions
+                sx={{
+                  px: { xs: 2.5, sm: 3.5 },
+                  py: 1.5,
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  justifyContent: 'space-between',
+                  bgcolor: alpha(theme.palette.text.primary, 0.015)
+                }}
+              >
+                <Typography
+                  sx={{
+                    display: { xs: 'none', sm: 'block' },
+                    color: 'text.secondary',
+                    fontFamily: 'monospace',
+                    fontSize: '0.64rem',
+                    letterSpacing: '0.08em'
+                  }}
+                >
+                  CRYPTECH / DIGITAL SOLUTIONS
+                </Typography>
+              </DialogActions>
+            </>
+          )}
+        </Dialog>
       </Container>
     </Box>
   );
+}
+
+/**
+ * Added: detailed service descriptions.
+ * These do not change your Supabase schema or existing Service type.
+ */
+function getServiceDetails(title: string): string {
+  const normalizedTitle = title.toLowerCase();
+
+  if (
+    normalizedTitle.includes('full-stack') ||
+    normalizedTitle.includes('web development')
+  ) {
+    return 'We build custom web applications that connect intuitive user interfaces with reliable backend systems. From application architecture and API integration to database-connected features, the implementation is tailored to your project requirements.';
+  }
+
+  if (
+    normalizedTitle.includes('web3') ||
+    normalizedTitle.includes('dapp') ||
+    normalizedTitle.includes('decentralized')
+  ) {
+    return 'We develop decentralized application experiences that connect web interfaces with blockchain networks. This can include wallet connectivity, smart contract interactions, and on-chain data integration, depending on the supported network and project scope.';
+  }
+
+  if (
+    normalizedTitle.includes('solidity') ||
+    normalizedTitle.includes('smart contract')
+  ) {
+    return 'We implement blockchain functionality using Solidity, with attention to contract structure, access control, maintainability, and testing. Independent security audits are separate unless explicitly included in the agreed scope.';
+  }
+
+  if (normalizedTitle.includes('design') && normalizedTitle.includes('web')) {
+    return 'We create responsive website designs with clear visual hierarchy, consistent components, and accessible interactions. The goal is to make your website reflect your brand while helping visitors understand and navigate your content.';
+  }
+
+  if (
+    normalizedTitle.includes('graphic') ||
+    normalizedTitle.includes('visual')
+  ) {
+    return 'We create digital graphics and brand assets for websites, social media, promotions, and other agreed platforms. Design direction and deliverables are tailored to your identity, audience, and intended use.';
+  }
+
+  if (
+    normalizedTitle.includes('consult') ||
+    normalizedTitle.includes('technical')
+  ) {
+    return 'We help evaluate technical challenges, compare implementation options, plan system architecture, and identify practical next steps. Recommendations take your goals, constraints, existing technology, and available resources into account.';
+  }
+
+  return `${title} is tailored to your project's goals and requirements. Contact us to discuss the scope, intended outcomes, expected deliverables, and the most suitable approach for your needs.`;
+}
+
+function getServiceDeliverables(title: string): string[] {
+  const normalizedTitle = title.toLowerCase();
+
+  if (
+    normalizedTitle.includes('full-stack') ||
+    normalizedTitle.includes('web development')
+  ) {
+    return [
+      'Custom web application features',
+      'Responsive frontend interfaces',
+      'API and database integration',
+      'Testing and deployment preparation'
+    ];
+  }
+
+  if (
+    normalizedTitle.includes('web3') ||
+    normalizedTitle.includes('dapp') ||
+    normalizedTitle.includes('decentralized')
+  ) {
+    return [
+      'Wallet connection integration',
+      'Smart contract interactions',
+      'Blockchain data integration',
+      'Web3 interface implementation'
+    ];
+  }
+
+  if (
+    normalizedTitle.includes('solidity') ||
+    normalizedTitle.includes('smart contract')
+  ) {
+    return [
+      'Solidity contract implementation',
+      'Access control and contract structure',
+      'Automated tests and test scenarios',
+      'Documentation and deployment preparation'
+    ];
+  }
+
+  if (normalizedTitle.includes('design') && normalizedTitle.includes('web')) {
+    return [
+      'Website layouts and page designs',
+      'Responsive interface styling',
+      'Reusable visual components',
+      'Usability and accessibility refinements'
+    ];
+  }
+
+  if (
+    normalizedTitle.includes('graphic') ||
+    normalizedTitle.includes('visual')
+  ) {
+    return [
+      'Brand and digital graphics',
+      'Promotional visual materials',
+      'Social media design assets',
+      'Exports in agreed formats'
+    ];
+  }
+
+  if (
+    normalizedTitle.includes('consult') ||
+    normalizedTitle.includes('technical')
+  ) {
+    return [
+      'Technical assessment',
+      'Architecture recommendations',
+      'Technology selection guidance',
+      'Practical implementation roadmap'
+    ];
+  }
+
+  return [
+    'Project requirements assessment',
+    'Tailored recommendations',
+    'Agreed implementation deliverables',
+    'Review and handover'
+  ];
+}
+
+function getServiceProcess(title: string): string[] {
+  const normalizedTitle = title.toLowerCase();
+
+  if (
+    normalizedTitle.includes('solidity') ||
+    normalizedTitle.includes('smart contract')
+  ) {
+    return [
+      'Define contract requirements',
+      'Plan the contract architecture',
+      'Implement and test the logic',
+      'Prepare documentation and deployment'
+    ];
+  }
+
+  if (
+    normalizedTitle.includes('web3') ||
+    normalizedTitle.includes('dapp') ||
+    normalizedTitle.includes('decentralized')
+  ) {
+    return [
+      'Define the blockchain use case',
+      'Plan wallet and network integration',
+      'Build the application interface',
+      'Test supported interactions'
+    ];
+  }
+
+  if (
+    normalizedTitle.includes('design') ||
+    normalizedTitle.includes('graphic')
+  ) {
+    return [
+      'Discuss your goals and audience',
+      'Establish the visual direction',
+      'Create and refine the designs',
+      'Deliver the agreed assets'
+    ];
+  }
+
+  if (
+    normalizedTitle.includes('consult') ||
+    normalizedTitle.includes('technical')
+  ) {
+    return [
+      'Review the current situation',
+      'Identify constraints and priorities',
+      'Evaluate practical solutions',
+      'Outline recommended next steps'
+    ];
+  }
+
+  return [
+    'Discuss requirements and objectives',
+    'Plan the solution and scope',
+    'Implement and review the work',
+    'Test and prepare the deliverables'
+  ];
 }

@@ -15,6 +15,12 @@ export type Project = {
   sourceUrl?: string;
   featured: boolean;
   banner?: string;
+
+  // Additional project details for the modal.
+  longDescription?: string;
+  features: string[];
+  objectives: string[];
+  additionalInfo: Record<string, unknown>;
 };
 
 type ProjectRow = {
@@ -29,6 +35,10 @@ type ProjectRow = {
   featured: boolean;
   banner: string | null;
   display_order: number;
+  long_description: string | null;
+  features: string[] | null;
+  objectives: string[] | null;
+  additional_info: Record<string, unknown> | null;
 };
 
 export async function fetchProjects(): Promise<Project[]> {
@@ -46,7 +56,11 @@ export async function fetchProjects(): Promise<Project[]> {
         source_url,
         featured,
         banner,
-        display_order
+        display_order,
+        long_description,
+        features,
+        objectives,
+        additional_info
       `
     )
     .eq('is_published', true)
@@ -70,6 +84,12 @@ export async function fetchProjects(): Promise<Project[]> {
     liveUrl: row.live_url ?? undefined,
     sourceUrl: row.source_url ?? undefined,
     featured: row.featured,
-    banner: row.banner ?? undefined
+    banner: row.banner ?? undefined,
+
+    // New fields used by the project details modal.
+    longDescription: row.long_description ?? undefined,
+    features: row.features ?? [],
+    objectives: row.objectives ?? [],
+    additionalInfo: row.additional_info ?? {}
   }));
 }

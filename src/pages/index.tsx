@@ -744,6 +744,8 @@ export default function Home() {
                   width: '100%',
                   maxWidth: 560,
                   minWidth: 0,
+                  borderRadius: { xs: 3, md: 4 },
+                  background: secondary,
                   justifySelf: { xs: 'center', md: 'end' }
                 }}
               >
@@ -954,7 +956,7 @@ export default function Home() {
                     px: 1.5,
                     py: 1.25,
                     borderRadius: 2.5,
-                    bgcolor: surface,
+                    bgcolor: `${alpha(theme.secondaryScale?.[4], 1)}`,
                     border: `1px solid ${alpha(primary, 0.25)}`,
                     boxShadow: `0 12px 34px ${alpha('#000000', 0.1)}`
                   }}

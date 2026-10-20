@@ -5,9 +5,16 @@ import { useEffect, useState } from 'react';
 import {
   Avatar,
   Box,
+  Button,
   Chip,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   Grid,
+  IconButton,
   Link as MuiLink,
   Pagination,
   Stack,
@@ -17,11 +24,19 @@ import {
 
 import { alpha } from '@mui/material/styles';
 
+import { useMediaQuery } from '@mui/material';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import ArrowOutwardRoundedIcon from '@mui/icons-material/ArrowOutwardRounded';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import LanguageRoundedIcon from '@mui/icons-material/LanguageRounded';
+import WorkspacePremiumRoundedIcon from '@mui/icons-material/WorkspacePremiumRounded';
+import FolderOpenRoundedIcon from '@mui/icons-material/FolderOpenRounded';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import EmojiEventsRoundedIcon from '@mui/icons-material/EmojiEventsRounded';
+import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
 
 import {
   fetchTeamMembers,
@@ -35,6 +50,23 @@ type TeamProps = {
   description?: string;
   email?: string;
   members?: TeamMember[];
+};
+
+/**
+ * Optional extended profile fields.
+ *
+ * These fields are compatible with the existing TeamMember type.
+ * They will display when they are returned by Supabase.
+ */
+type ExtendedTeamMember = TeamMember & {
+  bio?: string | null;
+  expertise?: string[] | null;
+  achievements?: string[] | null;
+  projects?: string[] | null;
+  location?: string | null;
+  availability?: string | null;
+  website?: string | null;
+  twitter?: string | null;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -71,7 +103,6 @@ function MemberAvatar({ member }: { member: TeamMember }) {
         border: `1px solid ${alpha(member.accent, 0.16)}`
       }}
     >
-      {/* Technical grid */}
       <Box
         aria-hidden="true"
         sx={{
@@ -88,7 +119,6 @@ function MemberAvatar({ member }: { member: TeamMember }) {
         }}
       />
 
-      {/* Accent rings */}
       <Box
         aria-hidden="true"
         sx={{
@@ -111,7 +141,6 @@ function MemberAvatar({ member }: { member: TeamMember }) {
         }}
       />
 
-      {/* Floating connection nodes */}
       {[0, 1, 2, 3, 4, 5].map((node) => (
         <Box
           key={node}
@@ -132,7 +161,11 @@ function MemberAvatar({ member }: { member: TeamMember }) {
       ))}
 
       <Avatar
-        src={avatarUrl}
+        src={
+          member.discordId && member.discordAvatar
+            ? `https://cdn.discordapp.com/avatars/${member.discordId}/${member.discordAvatar}.${member.discordAvatar.startsWith('a_') ? 'gif' : 'png'}?size=256`
+            : member.image
+        }
         alt={member.name}
         slotProps={{
           img: {
@@ -166,7 +199,6 @@ function MemberAvatar({ member }: { member: TeamMember }) {
         {member.initials}
       </Avatar>
 
-      {/* Branding */}
       <Stack
         direction="row"
         spacing={0.75}
@@ -199,7 +231,6 @@ function MemberAvatar({ member }: { member: TeamMember }) {
         </Typography>
       </Stack>
 
-      {/* Initial indicator */}
       <Box
         sx={{
           position: 'absolute',
@@ -224,10 +255,923 @@ function MemberAvatar({ member }: { member: TeamMember }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                         Team Member Details Modal                         */
+/* -------------------------------------------------------------------------- */
+
+function TeamMemberModal({
+  member,
+  open,
+  onClose
+}: {
+  member: ExtendedTeamMember | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const theme = useTheme();
+
+  if (!member) return null;
+
+  const accent = member.accent;
+  const expertise = member.expertise?.length
+    ? member.expertise
+    : (member.skills ?? []);
+
+  const achievements = member.achievements ?? [];
+  const projects = member.projects ?? [];
+
+  const avatarUrl =
+    member.discordId && member.discordAvatar
+      ? `https://cdn.discordapp.com/avatars/${member.discordId}/${member.discordAvatar}.${member.discordAvatar.startsWith('a_') ? 'gif' : 'png'}?size=512`
+      : member.image;
+
+  const panelBorder = alpha(accent, 0.22);
+  const subtleBackground = alpha(accent, 0.055);
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const socialLinks = [
+    { label: 'GitHub', href: member.github, icon: <GitHubIcon /> },
+    { label: 'LinkedIn', href: member.linkedin, icon: <LinkedInIcon /> },
+    {
+      label: 'Website',
+      href: member.website,
+      icon: <LanguageRoundedIcon />
+    },
+    {
+      label: 'X / Twitter',
+      href: member.twitter,
+      icon: <ArrowOutwardRoundedIcon />
+    }
+  ].filter(
+    (link): link is typeof link & { href: string } =>
+      typeof link.href === 'string' && link.href.trim().length > 0
+  );
+
+  const sections = [
+    {
+      id: '01',
+      title: 'Expertise',
+      subtitle: 'Skills and specializations',
+      icon: <WorkspacePremiumRoundedIcon />,
+      items: expertise
+    },
+    {
+      id: '02',
+      title: 'Achievements',
+      subtitle: 'Milestones and accomplishments',
+      icon: <EmojiEventsRoundedIcon />,
+      items: achievements
+    },
+    {
+      id: '03',
+      title: 'Projects',
+      subtitle: 'Work and contributions',
+      icon: <FolderOpenRoundedIcon />,
+      items: projects
+    }
+  ];
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      fullScreen={isMobile}
+      maxWidth="md"
+      aria-labelledby="team-member-dialog-title"
+      scroll="paper"
+      slotProps={{
+        paper: {
+          sx: {
+            position: 'relative',
+            overflow: 'hidden',
+            borderRadius: { xs: 0, sm: 3.5 },
+            border: isMobile ? 'none' : `1px solid ${panelBorder}`,
+            bgcolor: theme.secondaryScale?.[4],
+            backgroundImage: 'none',
+            boxShadow: isMobile
+              ? 'none'
+              : `0 30px 100px ${alpha('#000000', 0.3)}`,
+            height: isMobile ? '100%' : 'auto',
+            maxHeight: isMobile ? '100%' : 'calc(100% - 64px)'
+          }
+        }
+      }}
+    >
+      {/* Unified Team Member Profile Header */}
+      <Box
+        sx={{
+          position: 'relative',
+          overflow: 'hidden',
+          isolation: 'isolate',
+          borderBottom: `1px solid ${panelBorder}`,
+          background: `
+      radial-gradient(
+        ellipse at 8% 100%,
+        ${alpha(accent, 0.2)} 0%,
+        transparent 45%
+      ),
+      radial-gradient(
+        ellipse at 100% 0%,
+        ${alpha(accent, 0.16)} 0%,
+        transparent 42%
+      ),
+      radial-gradient(
+        ellipse at 55% 55%,
+        ${alpha(theme.palette.primary.main, 0.08)} 0%,
+        transparent 60%
+      ),
+      linear-gradient(
+        135deg,
+        ${theme.palette.background.paper} 0%,
+        ${alpha(accent, 0.045)} 50%,
+        ${theme.palette.background.paper} 100%
+      )
+    `
+        }}
+      >
+        {/* Background grid */}
+        <Box
+          aria-hidden="true"
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: -1,
+            opacity: 0.16,
+            backgroundImage: `
+        linear-gradient(${alpha(accent, 0.28)} 1px, transparent 1px),
+        linear-gradient(90deg, ${alpha(accent, 0.28)} 1px, transparent 1px)
+      `,
+            backgroundSize: '32px 32px',
+            maskImage: 'linear-gradient(to bottom, black, transparent 90%)',
+            pointerEvents: 'none'
+          }}
+        />
+
+        {/* Ambient glow */}
+        <Box
+          aria-hidden="true"
+          sx={{
+            position: 'absolute',
+            width: { xs: 240, sm: 380 },
+            height: { xs: 240, sm: 380 },
+            top: { xs: -135, sm: -210 },
+            right: { xs: -110, sm: 0 },
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${alpha(accent, 0.25)} 0%, ${alpha(accent, 0.07)} 40%, transparent 70%)`,
+            filter: 'blur(10px)',
+            pointerEvents: 'none'
+          }}
+        />
+
+        {/* Decorative orbit */}
+        <Box
+          aria-hidden="true"
+          sx={{
+            position: 'absolute',
+            width: { xs: 190, sm: 300 },
+            height: { xs: 190, sm: 300 },
+            top: { xs: -95, sm: -175 },
+            right: { xs: -65, sm: 45 },
+            borderRadius: '50%',
+            border: `1px solid ${alpha(accent, 0.22)}`,
+            pointerEvents: 'none'
+          }}
+        />
+
+        <Box
+          aria-hidden="true"
+          sx={{
+            position: 'absolute',
+            width: { xs: 130, sm: 215 },
+            height: { xs: 130, sm: 215 },
+            top: { xs: -65, sm: -132 },
+            right: { xs: -35, sm: 88 },
+            borderRadius: '50%',
+            border: `1px dashed ${alpha(accent, 0.3)}`,
+            pointerEvents: 'none'
+          }}
+        />
+
+        {/* Header content */}
+        <Box
+          sx={{
+            position: 'relative',
+            px: { xs: 2.5, sm: 4 },
+            pt: { xs: 2.5, sm: 3.5 },
+            pb: { xs: 2.5, sm: 3 }
+          }}
+        >
+          {/* Brand and close button */}
+          <Stack
+            direction="row"
+            sx={{
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: 2,
+              mb: { xs: 3.5, sm: 4.5 }
+            }}
+          >
+            <Box>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: 'center', mb: 1.75 }}
+              >
+                <Box
+                  sx={{
+                    width: 7,
+                    height: 7,
+                    flexShrink: 0,
+                    borderRadius: '50%',
+                    bgcolor: accent,
+                    boxShadow: `0 0 12px ${alpha(accent, 0.75)}`
+                  }}
+                />
+
+                <Typography
+                  sx={{
+                    fontFamily: 'monospace',
+                    fontSize: '0.66rem',
+                    fontWeight: 850,
+                    letterSpacing: '0.15em',
+                    color: accent,
+                    textTransform: 'uppercase'
+                  }}
+                >
+                  CRYPTECH / PERSONNEL
+                </Typography>
+              </Stack>
+
+              <Typography
+                sx={{
+                  fontSize: { xs: '1.75rem', sm: '2.4rem' },
+                  fontWeight: 950,
+                  lineHeight: 1,
+                  letterSpacing: '-0.065em'
+                }}
+              >
+                Behind the{' '}
+                <Box
+                  component="span"
+                  sx={{
+                    color: accent,
+                    textShadow: `0 0 25px ${alpha(accent, 0.22)}`
+                  }}
+                >
+                  expertise.
+                </Box>
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 1.25,
+                  color: 'text.secondary',
+                  fontSize: { xs: '0.72rem', sm: '0.8rem' },
+                  letterSpacing: '0.02em'
+                }}
+              >
+                People building digital possibilities.
+              </Typography>
+            </Box>
+
+            <IconButton
+              onClick={onClose}
+              aria-label="Close member details"
+              sx={{
+                flexShrink: 0,
+                color: 'text.primary',
+                bgcolor: alpha(theme.palette.background.paper, 0.7),
+                border: `1px solid ${panelBorder}`,
+                backdropFilter: 'blur(12px)',
+                borderRadius: 2,
+                '&:hover': {
+                  color: accent,
+                  bgcolor: theme.palette.background.paper,
+                  borderColor: accent
+                }
+              }}
+            >
+              <CloseRoundedIcon />
+            </IconButton>
+          </Stack>
+
+          {/* Member identity */}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={{ xs: 2.5, sm: 3.5 }}
+            sx={{
+              alignItems: { xs: 'flex-start', sm: 'center' }
+            }}
+          >
+            {/* Portrait */}
+            <Box
+              sx={{
+                position: 'relative',
+                flexShrink: 0,
+                p: 0.75,
+                borderRadius: 3,
+                background: `
+            linear-gradient(
+              145deg,
+              ${alpha(accent, 0.85)},
+              ${alpha(accent, 0.08)} 48%,
+              ${alpha(accent, 0.55)}
+            )
+          `,
+                boxShadow: `0 12px 36px ${alpha(accent, 0.16)}`
+              }}
+            >
+              <Avatar
+                src={avatarUrl}
+                alt={member.name}
+                slotProps={{
+                  img: { loading: 'lazy' }
+                }}
+                sx={{
+                  width: { xs: 104, sm: 132 },
+                  height: { xs: 104, sm: 132 },
+                  borderRadius: 2.25,
+                  bgcolor: alpha(accent, 0.14),
+                  color: accent,
+                  fontSize: '2rem',
+                  fontWeight: 900,
+                  border: `2px solid ${theme.palette.background.paper}`
+                }}
+              >
+                {member.initials}
+              </Avatar>
+
+              <Box
+                aria-hidden="true"
+                sx={{
+                  position: 'absolute',
+                  right: -4,
+                  bottom: -4,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 1.25,
+                  bgcolor: theme.palette.background.paper,
+                  border: `1px solid ${panelBorder}`,
+                  display: 'grid',
+                  placeItems: 'center'
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '2px',
+                    bgcolor: accent,
+                    transform: 'rotate(45deg)'
+                  }}
+                />
+              </Box>
+            </Box>
+
+            {/* Member information */}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Stack
+                direction="row"
+                useFlexGap
+                sx={{
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: 1,
+                  mb: 1.5
+                }}
+              >
+                <Chip
+                  label={member.category}
+                  size="small"
+                  sx={{
+                    bgcolor: alpha(accent, 0.1),
+                    color: accent,
+                    border: `1px solid ${panelBorder}`,
+                    borderRadius: 1.25,
+                    fontWeight: 850,
+                    fontSize: '0.68rem'
+                  }}
+                />
+
+                {member.availability && (
+                  <Chip
+                    label={member.availability}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      borderColor: theme.palette.divider,
+                      color: 'text.secondary',
+                      borderRadius: 1.25,
+                      fontWeight: 650,
+                      fontSize: '0.68rem'
+                    }}
+                  />
+                )}
+              </Stack>
+
+              <Typography
+                id="team-member-dialog-title"
+                sx={{
+                  fontSize: { xs: '2.2rem', sm: '3rem' },
+                  fontWeight: 950,
+                  lineHeight: 1,
+                  letterSpacing: '-0.065em',
+                  overflowWrap: 'anywhere'
+                }}
+              >
+                {member.name}
+                <Box
+                  component="span"
+                  sx={{
+                    color: accent,
+                    textShadow: `0 0 24px ${alpha(accent, 0.2)}`
+                  }}
+                >
+                  .
+                </Box>
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 1.25,
+                  fontSize: { xs: '0.95rem', sm: '1.05rem' },
+                  color: accent,
+                  fontWeight: 800,
+                  letterSpacing: '-0.015em'
+                }}
+              >
+                {member.role}
+              </Typography>
+
+              {member.location && (
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  sx={{
+                    alignItems: 'center',
+                    mt: 1.5,
+                    color: 'text.secondary'
+                  }}
+                >
+                  <LocationOnOutlinedIcon sx={{ fontSize: 17 }} />
+                  <Typography variant="body2">{member.location}</Typography>
+                </Stack>
+              )}
+            </Box>
+          </Stack>
+
+          {/* Profile footer */}
+          <Divider
+            sx={{
+              my: { xs: 2.5, sm: 3 },
+              borderColor: alpha(accent, 0.18)
+            }}
+          />
+
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              rowGap: 1
+            }}
+          >
+            <Typography
+              sx={{
+                color: 'text.secondary',
+                fontFamily: 'monospace',
+                fontSize: '0.65rem',
+                letterSpacing: '0.1em'
+              }}
+            >
+              DIGITAL SOLUTIONS · PEOPLE BEHIND THE WORK
+            </Typography>
+
+            <Stack direction="row" spacing={0.6} sx={{ alignItems: 'center' }}>
+              {[0, 1, 2].map((dot) => (
+                <Box
+                  key={dot}
+                  sx={{
+                    width: dot === 0 ? 18 : 5,
+                    height: 5,
+                    borderRadius: 5,
+                    bgcolor: dot === 0 ? accent : alpha(accent, 0.3)
+                  }}
+                />
+              ))}
+            </Stack>
+          </Stack>
+        </Box>
+
+        {/* Bottom accent line */}
+        <Box
+          aria-hidden="true"
+          sx={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: '65%',
+            height: '1px',
+            background: `linear-gradient(90deg, transparent, ${alpha(accent, 0.75)}, transparent)`,
+            boxShadow: `0 0 14px ${alpha(accent, 0.35)}`,
+            pointerEvents: 'none'
+          }}
+        />
+      </Box>
+
+      {/* Main content */}
+      <DialogContent
+        sx={{
+          p: { xs: 2.5, sm: 3.5 },
+          '&:first-of-type': { pt: { xs: 2.5, sm: 3.5 } }
+        }}
+      >
+        {/* Overview */}
+        <Box sx={{ mb: 4 }}>
+          <Stack
+            direction="row"
+            spacing={1.25}
+            sx={{ alignItems: 'center', mb: 1.75 }}
+          >
+            <Typography
+              sx={{
+                color: accent,
+                fontFamily: 'monospace',
+                fontSize: '0.7rem',
+                fontWeight: 900
+              }}
+            >
+              01
+            </Typography>
+
+            <Typography
+              sx={{
+                color: 'text.secondary',
+                fontSize: '0.7rem',
+                fontWeight: 850,
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase'
+              }}
+            >
+              Overview
+            </Typography>
+
+            <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
+          </Stack>
+
+          <Typography
+            sx={{
+              maxWidth: 720,
+              color: 'text.secondary',
+              fontSize: '0.94rem',
+              lineHeight: 1.95,
+              whiteSpace: 'pre-line',
+              overflowWrap: 'anywhere'
+            }}
+          >
+            {member.bio ||
+              member.description ||
+              'This team member has not added a profile description yet.'}
+          </Typography>
+        </Box>
+
+        {/* Expertise, achievements and projects */}
+        <Box sx={{ mb: 4 }}>
+          <Stack
+            direction="row"
+            spacing={1.25}
+            sx={{ alignItems: 'center', mb: 2 }}
+          >
+            <Typography
+              sx={{
+                color: accent,
+                fontFamily: 'monospace',
+                fontSize: '0.7rem',
+                fontWeight: 900
+              }}
+            >
+              02
+            </Typography>
+
+            <Typography
+              sx={{
+                color: 'text.secondary',
+                fontSize: '0.7rem',
+                fontWeight: 850,
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase'
+              }}
+            >
+              Capabilities & Contributions
+            </Typography>
+
+            <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
+          </Stack>
+
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))'
+              },
+              gap: 1.5
+            }}
+          >
+            {sections.map((section, index) => (
+              <Box
+                key={section.id}
+                sx={{
+                  gridColumn:
+                    index === 2 ? { xs: 'auto', sm: '1 / -1' } : 'auto',
+                  minWidth: 0,
+                  p: { xs: 2, sm: 2.25 },
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  bgcolor: alpha(theme.palette.text.primary, 0.018),
+                  transition:
+                    'border-color 180ms ease, background-color 180ms ease',
+                  '&:hover': {
+                    borderColor: panelBorder,
+                    bgcolor: alpha(accent, 0.035)
+                  }
+                }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center', mb: 1.75 }}
+                >
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      placeItems: 'center',
+                      width: 34,
+                      height: 34,
+                      flexShrink: 0,
+                      borderRadius: 1.5,
+                      color: accent,
+                      bgcolor: subtleBackground,
+                      border: `1px solid ${panelBorder}`,
+                      '& svg': { fontSize: 19 }
+                    }}
+                  >
+                    {section.icon}
+                  </Box>
+
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 850 }}>
+                      {section.title}
+                    </Typography>
+
+                    <Typography
+                      variant="caption"
+                      sx={{ color: 'text.secondary' }}
+                    >
+                      {section.subtitle}
+                    </Typography>
+                  </Box>
+
+                  <Typography
+                    sx={{
+                      color: 'text.secondary',
+                      fontFamily: 'monospace',
+                      fontSize: '0.68rem'
+                    }}
+                  >
+                    {String(section.items.length).padStart(2, '0')}
+                  </Typography>
+                </Stack>
+
+                {section.items.length > 0 ? (
+                  <Stack spacing={1}>
+                    {section.items.map((item) => (
+                      <Stack
+                        key={`${section.id}-${item}`}
+                        direction="row"
+                        spacing={1}
+                        sx={{ alignItems: 'center' }}
+                      >
+                        <Box
+                          sx={{
+                            mt: '8px',
+                            width: 5,
+                            height: 5,
+                            flexShrink: 0,
+                            borderRadius: '1px',
+                            bgcolor: accent,
+                            transform: 'rotate(45deg)'
+                          }}
+                        />
+
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            minWidth: 0,
+                            color: 'text.secondary',
+                            lineHeight: 1.75,
+                            overflowWrap: 'anywhere'
+                          }}
+                        >
+                          {item}
+                        </Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary', lineHeight: 1.7 }}
+                  >
+                    No {section.title.toLowerCase()} added yet.
+                  </Typography>
+                )}
+              </Box>
+            ))}
+          </Box>
+        </Box>
+
+        {/* Contact and social links */}
+        <Box>
+          <Stack
+            direction="row"
+            spacing={1.25}
+            sx={{ alignItems: 'center', mb: 2 }}
+          >
+            <Typography
+              sx={{
+                color: accent,
+                fontFamily: 'monospace',
+                fontSize: '0.7rem',
+                fontWeight: 900
+              }}
+            >
+              03
+            </Typography>
+
+            <Typography
+              sx={{
+                color: 'text.secondary',
+                fontSize: '0.7rem',
+                fontWeight: 850,
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase'
+              }}
+            >
+              Find & Connect
+            </Typography>
+
+            <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
+          </Stack>
+
+          <Box
+            sx={{
+              position: 'relative',
+              overflow: 'hidden',
+              p: { xs: 2, sm: 2.5 },
+              borderRadius: 2.5,
+              border: `1px solid ${panelBorder}`,
+              background: `
+                radial-gradient(
+                  ellipse at 100% 0%,
+                  ${alpha(accent, 0.13)},
+                  transparent 58%
+                ),
+                linear-gradient(
+                  135deg,
+                  ${alpha(accent, 0.065)},
+                  ${alpha(theme.palette.background.paper, 0.1)}
+                )
+              `
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              sx={{
+                alignItems: { xs: 'stretch', sm: 'center' },
+                justifyContent: 'space-between'
+              }}
+            >
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontWeight: 900 }}>
+                  Let&apos;s build something meaningful.
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    mt: 0.5,
+                    color: 'text.secondary',
+                    lineHeight: 1.7
+                  }}
+                >
+                  Connect with {member.name} or explore their work online.
+                </Typography>
+              </Box>
+
+              <Button
+                component="a"
+                href={`mailto:${member.email}`}
+                variant="contained"
+                startIcon={<EmailOutlinedIcon />}
+                sx={{
+                  flexShrink: 0,
+                  bgcolor: accent,
+                  color: theme.palette.getContrastText(accent),
+                  fontWeight: 850,
+                  borderRadius: 1.5,
+                  boxShadow: 'none',
+                  '&:hover': {
+                    bgcolor: accent,
+                    filter: 'brightness(0.92)',
+                    boxShadow: 'none'
+                  }
+                }}
+              >
+                Contact
+              </Button>
+            </Stack>
+
+            {socialLinks.length > 0 && (
+              <>
+                <Divider sx={{ my: 2, borderColor: panelBorder }} />
+
+                <Stack
+                  direction="row"
+                  useFlexGap
+                  sx={{ flexWrap: 'wrap', gap: 1 }}
+                >
+                  {socialLinks.map((link) => (
+                    <Button
+                      key={link.label}
+                      component="a"
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      size="small"
+                      variant="outlined"
+                      startIcon={link.icon}
+                      sx={{
+                        minWidth: 0,
+                        borderRadius: 1.5,
+                        borderColor: theme.palette.divider,
+                        color: 'text.primary',
+                        fontWeight: 750,
+                        '&:hover': {
+                          borderColor: accent,
+                          bgcolor: alpha(accent, 0.07)
+                        }
+                      }}
+                    >
+                      {link.label}
+                    </Button>
+                  ))}
+                </Stack>
+              </>
+            )}
+          </Box>
+        </Box>
+      </DialogContent>
+
+      {/* Footer */}
+      <DialogActions
+        sx={{
+          px: { xs: 2.5, sm: 3.5 },
+          py: 1.5,
+          borderTop: `1px solid ${theme.palette.divider}`,
+          justifyContent: 'space-between',
+          bgcolor: alpha(theme.palette.text.primary, 0.015)
+        }}
+      >
+        <Typography
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            color: 'text.secondary',
+            fontFamily: 'monospace',
+            fontSize: '0.64rem',
+            letterSpacing: '0.08em'
+          }}
+        >
+          CRYPTECH / DIGITAL SOLUTIONS
+        </Typography>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*                              Team Member Card                              */
 /* -------------------------------------------------------------------------- */
 
-function TeamMemberCard({ member }: { member: TeamMember }) {
+function TeamMemberCard({
+  member,
+  onClick
+}: {
+  member: TeamMember;
+  onClick: () => void;
+}) {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
@@ -238,6 +1182,18 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
     <Box
       component="article"
       className="team-card"
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`View details for ${member.name}`}
       sx={{
         position: 'relative',
         display: 'flex',
@@ -251,13 +1207,19 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
         borderRadius: 3,
         bgcolor: cardSurface,
         border: `1px solid ${theme.palette.divider}`,
+        cursor: 'pointer',
         transition:
           'transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease',
 
-        '&:hover': {
+        '&:hover, &:focus-visible': {
           transform: 'translateY(-5px)',
           borderColor: alpha(member.accent, 0.6),
           boxShadow: `0 18px 40px ${alpha(member.accent, isDark ? 0.09 : 0.07)}`
+        },
+
+        '&:focus-visible': {
+          outline: `2px solid ${member.accent}`,
+          outlineOffset: 3
         },
 
         '@media (prefers-reduced-motion: reduce)': {
@@ -268,7 +1230,6 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
         }
       }}
     >
-      {/* Accent line */}
       <Box
         aria-hidden="true"
         sx={{
@@ -285,7 +1246,6 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
 
       <MemberAvatar member={member} />
 
-      {/* Member details */}
       <Box sx={{ px: 0.5, pt: 2, pb: 0.5 }}>
         <Stack
           direction="row"
@@ -357,7 +1317,6 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
           {member.description}
         </Typography>
 
-        {/* Skills */}
         <Stack
           direction="row"
           useFlexGap
@@ -409,7 +1368,6 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
 
       <Box sx={{ flexGrow: 1 }} />
 
-      {/* Contact footer */}
       <Stack
         direction="row"
         spacing={1}
@@ -439,6 +1397,7 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
             href={`mailto:${member.email}`}
             underline="none"
             title={member.email}
+            onClick={(event) => event.stopPropagation()}
             sx={{
               minWidth: 0,
               color: 'text.secondary',
@@ -463,6 +1422,7 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`${member.name} on GitHub`}
+              onClick={(event) => event.stopPropagation()}
               sx={{
                 display: 'grid',
                 placeItems: 'center',
@@ -486,6 +1446,7 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`${member.name} on LinkedIn`}
+              onClick={(event) => event.stopPropagation()}
               sx={{
                 display: 'grid',
                 placeItems: 'center',
@@ -506,6 +1467,7 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
           <MuiLink
             href={`mailto:${member.email}`}
             aria-label={`Email ${member.name}`}
+            onClick={(event) => event.stopPropagation()}
             sx={{
               display: 'grid',
               placeItems: 'center',
@@ -523,6 +1485,21 @@ function TeamMemberCard({ member }: { member: TeamMember }) {
           </MuiLink>
         </Stack>
       </Stack>
+
+      <Typography
+        sx={{
+          mt: 1.25,
+          textAlign: 'center',
+          color: member.accent,
+          fontSize: '0.68rem',
+          fontWeight: 750
+        }}
+      >
+        View full profile{' '}
+        <ArrowOutwardRoundedIcon
+          sx={{ fontSize: 12, verticalAlign: 'middle' }}
+        />
+      </Typography>
     </Box>
   );
 }
@@ -550,9 +1527,11 @@ export default function Team({
 
   const [page, setPage] = useState(1);
 
-  const membersPerPage = 4;
+  // NEW: selected member controls the profile modal.
+  const [selectedMember, setSelectedMember] =
+    useState<ExtendedTeamMember | null>(null);
 
-  /* -------------------------- Fetch from Supabase ------------------------- */
+  const membersPerPage = 4;
 
   useEffect(() => {
     if (suppliedMembers !== undefined) {
@@ -597,8 +1576,6 @@ export default function Team({
 
   const members = suppliedMembers ?? fetchedMembers;
 
-  /* --------------------------- Filter and pages -------------------------- */
-
   const categories: (TeamCategory | 'All')[] = [
     'All',
     'Admins',
@@ -626,8 +1603,6 @@ export default function Team({
       ? members.length
       : members.filter((member) => member.category === category).length;
 
-  /* -------------------------------- Render ------------------------------- */
-
   return (
     <Box
       component="section"
@@ -643,7 +1618,6 @@ export default function Team({
         borderBottom: `1px solid ${alpha(theme.palette.secondary.main, 0.3)}`
       }}
     >
-      {/* Upper-left ambient glow */}
       <Box
         aria-hidden="true"
         sx={{
@@ -677,118 +1651,85 @@ export default function Team({
           '& .team-grid': {
             animation: 'teamGridDrift 35s linear infinite'
           },
-
           '& .team-glow': {
             transformBox: 'fill-box',
             transformOrigin: 'center',
             animation: 'teamGlowPulse 9s ease-in-out infinite alternate'
           },
-
           '& .team-glow-right': {
             animationDelay: '-4s'
           },
-
           '& .team-circuit': {
             strokeDasharray: '8 12',
             animation: 'teamCircuitFlow 18s linear infinite'
           },
-
           '& .team-circuit-reverse': {
             strokeDasharray: '5 14',
             animation: 'teamCircuitReverse 22s linear infinite'
           },
-
           '& .team-data-line': {
             strokeDasharray: '2 26',
             animation: 'teamDataFlow 7s linear infinite'
           },
-
           '& .team-data-line-delayed': {
             animationDelay: '-3.5s'
           },
-
           '& .team-node': {
             transformBox: 'fill-box',
             transformOrigin: 'center',
             animation: 'teamNodePulse 3.8s ease-in-out infinite'
           },
-
           '& .team-node:nth-of-type(3n)': {
             animationDelay: '-1.3s'
           },
-
           '& .team-node:nth-of-type(4n)': {
             animationDelay: '-2.4s'
           },
-
           '& .team-orbit': {
             transformBox: 'view-box',
             transformOrigin: '720px 350px',
             animation: 'teamOrbitRotate 65s linear infinite'
           },
-
           '& .team-orbit-reverse': {
             transformBox: 'view-box',
             transformOrigin: '720px 350px',
             animation: 'teamOrbitRotateReverse 85s linear infinite'
           },
-
           '& .team-orbit-dot': {
             animation: 'teamNodePulse 2.6s ease-in-out infinite'
           },
-
           '@keyframes teamGridDrift': {
             from: { transform: 'translate(0, 0)' },
             to: { transform: 'translate(48px, 48px)' }
           },
-
           '@keyframes teamGlowPulse': {
-            '0%': {
-              opacity: 0.45,
-              transform: 'scale(0.9)'
-            },
-            '100%': {
-              opacity: 1,
-              transform: 'scale(1.12)'
-            }
+            '0%': { opacity: 0.45, transform: 'scale(0.9)' },
+            '100%': { opacity: 1, transform: 'scale(1.12)' }
           },
-
           '@keyframes teamCircuitFlow': {
             from: { strokeDashoffset: 0 },
             to: { strokeDashoffset: -200 }
           },
-
           '@keyframes teamCircuitReverse': {
             from: { strokeDashoffset: 0 },
             to: { strokeDashoffset: 200 }
           },
-
           '@keyframes teamDataFlow': {
             from: { strokeDashoffset: 0 },
             to: { strokeDashoffset: -112 }
           },
-
           '@keyframes teamNodePulse': {
-            '0%, 100%': {
-              opacity: 0.35,
-              transform: 'scale(0.8)'
-            },
-            '50%': {
-              opacity: 1,
-              transform: 'scale(1.4)'
-            }
+            '0%, 100%': { opacity: 0.35, transform: 'scale(0.8)' },
+            '50%': { opacity: 1, transform: 'scale(1.4)' }
           },
-
           '@keyframes teamOrbitRotate': {
             from: { transform: 'rotate(0deg)' },
             to: { transform: 'rotate(360deg)' }
           },
-
           '@keyframes teamOrbitRotateReverse': {
             from: { transform: 'rotate(360deg)' },
             to: { transform: 'rotate(0deg)' }
           },
-
           '@media (prefers-reduced-motion: reduce)': {
             '& .team-grid, & .team-glow, & .team-circuit, & .team-circuit-reverse, & .team-data-line, & .team-node, & .team-orbit, & .team-orbit-reverse, & .team-orbit-dot':
               {
@@ -853,7 +1794,6 @@ export default function Team({
             </mask>
           </defs>
 
-          {/* Ambient light */}
           <g>
             <circle
               className="team-glow"
@@ -862,7 +1802,6 @@ export default function Team({
               r="300"
               fill="url(#teamGlow)"
             />
-
             <circle
               className="team-glow team-glow-right"
               cx="1270"
@@ -870,7 +1809,6 @@ export default function Team({
               r="330"
               fill="url(#teamGlow)"
             />
-
             <circle
               className="team-glow"
               cx="720"
@@ -882,7 +1820,6 @@ export default function Team({
             />
           </g>
 
-          {/* Drifting technical grid */}
           <g className="team-grid">
             <rect
               x="-48"
@@ -894,7 +1831,6 @@ export default function Team({
           </g>
 
           <g mask="url(#teamNetworkMask)">
-            {/* Left circuit framework */}
             <g
               fill="none"
               stroke="currentColor"
@@ -914,7 +1850,6 @@ export default function Team({
               <path d="M80 560 V510 L130 460" />
             </g>
 
-            {/* Moving circuit highlights */}
             <g
               fill="none"
               stroke="currentColor"
@@ -938,7 +1873,6 @@ export default function Team({
               <path className="team-circuit" d="M320 340 L360 390 V490" />
             </g>
 
-            {/* Right circuit framework */}
             <g
               fill="none"
               stroke="currentColor"
@@ -958,7 +1892,6 @@ export default function Team({
               <path d="M1360 560 V510 L1310 460" />
             </g>
 
-            {/* Moving right circuit highlights */}
             <g
               fill="none"
               stroke="currentColor"
@@ -985,7 +1918,6 @@ export default function Team({
               />
             </g>
 
-            {/* Moving data packets */}
             <g
               fill="none"
               stroke="currentColor"
@@ -1011,7 +1943,6 @@ export default function Team({
               />
             </g>
 
-            {/* Static network nodes */}
             <g fill="currentColor" opacity="0.72">
               {[
                 [110, 180],
@@ -1045,7 +1976,6 @@ export default function Team({
               ))}
             </g>
 
-            {/* Pulsing nodes */}
             <g fill="currentColor" filter="url(#teamNodeGlow)">
               {[
                 [110, 180],
@@ -1072,7 +2002,6 @@ export default function Team({
               ))}
             </g>
 
-            {/* Central orbital rings */}
             <g fill="none" stroke="currentColor" strokeWidth="1" opacity="0.18">
               <circle cx="720" cy="350" r="180" />
               <circle cx="720" cy="350" r="230" />
@@ -1105,7 +2034,6 @@ export default function Team({
               />
             </g>
 
-            {/* Orbital signal markers */}
             <g className="team-orbit" style={{ animationDuration: '32s' }}>
               <circle
                 cx="720"
@@ -1139,7 +2067,6 @@ export default function Team({
         </Box>
       </Box>
 
-      {/* Lower-right ambient glow */}
       <Box
         aria-hidden="true"
         sx={{
@@ -1152,20 +2079,13 @@ export default function Team({
           display: { xs: 'none', md: 'block' },
           background: `radial-gradient(circle, ${alpha(
             theme.palette.secondary.main,
-            0.08
+            0.1
           )}, transparent 70%)`,
           pointerEvents: 'none'
         }}
       />
 
-      <Container
-        maxWidth="xl"
-        sx={{
-          position: 'relative',
-          zIndex: 1
-        }}
-      >
-        {/* Section heading */}
+      <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
         <Stack
           sx={{
             alignItems: 'center',
@@ -1227,7 +2147,6 @@ export default function Team({
           </Typography>
         </Stack>
 
-        {/* Category filters */}
         <Stack
           direction="row"
           sx={{
@@ -1268,15 +2187,7 @@ export default function Team({
           })}
         </Stack>
 
-        {/* Selected category heading */}
-        <Stack
-          direction="row"
-          sx={{
-            alignItems: 'center',
-            gap: 1,
-            mb: 2.5
-          }}
-        >
+        <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mb: 2.5 }}>
           <Box
             sx={{
               width: 4,
@@ -1298,18 +2209,13 @@ export default function Team({
           </Typography>
 
           <Typography
-            sx={{
-              ml: 0.5,
-              fontSize: '0.75rem',
-              color: 'text.secondary'
-            }}
+            sx={{ ml: 0.5, fontSize: '0.75rem', color: 'text.secondary' }}
           >
             {filteredMembers.length}{' '}
             {filteredMembers.length === 1 ? 'member' : 'members'}
           </Typography>
         </Stack>
 
-        {/* Loading state */}
         {loading ? (
           <Box sx={{ py: 8, textAlign: 'center' }}>
             <Typography color="text.secondary">
@@ -1317,7 +2223,6 @@ export default function Team({
             </Typography>
           </Box>
         ) : loadError ? (
-          /* Error state */
           <Box
             role="alert"
             sx={{
@@ -1355,7 +2260,6 @@ export default function Team({
             />
           </Box>
         ) : visibleMembers.length > 0 ? (
-          /* Team member cards */
           <Grid
             key={`${selectedCategory}-${page}`}
             container
@@ -1365,14 +2269,8 @@ export default function Team({
               alignItems: 'stretch',
               animation: 'teamPageEnter 280ms ease',
               '@keyframes teamPageEnter': {
-                from: {
-                  opacity: 0,
-                  transform: 'translateY(8px)'
-                },
-                to: {
-                  opacity: 1,
-                  transform: 'translateY(0)'
-                }
+                from: { opacity: 0, transform: 'translateY(8px)' },
+                to: { opacity: 1, transform: 'translateY(0)' }
               },
               '@media (prefers-reduced-motion: reduce)': {
                 animation: 'none'
@@ -1384,12 +2282,16 @@ export default function Team({
                 key={`${member.name}-${member.role}`}
                 size={{ xs: 12, sm: 6, md: 4, lg: 3 }}
               >
-                <TeamMemberCard member={member} />
+                <TeamMemberCard
+                  member={member}
+                  onClick={() =>
+                    setSelectedMember(member as ExtendedTeamMember)
+                  }
+                />
               </Grid>
             ))}
           </Grid>
         ) : (
-          /* Empty state */
           <Box
             sx={{
               py: 8,
@@ -1404,14 +2306,10 @@ export default function Team({
           </Box>
         )}
 
-        {/* Pagination */}
         {!loading && !loadError && pageCount >= 1 && (
           <Stack
             spacing={1.5}
-            sx={{
-              alignItems: 'center',
-              mt: { xs: 4, md: 5 }
-            }}
+            sx={{ alignItems: 'center', mt: { xs: 4, md: 5 } }}
           >
             <Pagination
               count={pageCount}
@@ -1429,10 +2327,7 @@ export default function Team({
                   borderRadius: 2
                 },
                 '& .MuiPaginationItem-root.Mui-selected': {
-                  boxShadow: `0 0 18px ${alpha(
-                    theme.palette.primary.main,
-                    0.18
-                  )}`
+                  boxShadow: `0 0 18px ${alpha(theme.palette.primary.main, 0.18)}`
                 }
               }}
             />
@@ -1454,6 +2349,13 @@ export default function Team({
           </Stack>
         )}
       </Container>
+
+      {/* NEW: one reusable modal, populated with the selected member's data. */}
+      <TeamMemberModal
+        member={selectedMember}
+        open={selectedMember !== null}
+        onClose={() => setSelectedMember(null)}
+      />
     </Box>
   );
 }

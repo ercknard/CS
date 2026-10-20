@@ -14,8 +14,21 @@ export interface TeamMember {
   category: TeamCategory;
   discordId: string;
   discordAvatar: string;
-  github?: string;
-  linkedin?: string;
+
+  // Extended profile details
+  bio?: string | null;
+  expertise?: string[] | null;
+  achievements?: string[] | null;
+  projects?: string[] | null;
+  location?: string | null;
+  availability?: string | null;
+
+  // Social profiles
+  website?: string | null;
+  twitter?: string | null;
+  github?: string | null;
+  linkedin?: string | null;
+
   image?: string;
 }
 
@@ -23,13 +36,26 @@ interface TeamMemberRow {
   name: string;
   role: string;
   initials: string;
-  description: string;
+  description: string | null;
   skills: string[] | null;
   accent: string;
   email: string;
   category: string;
+
   discord_id: string | null;
   discord_avatar: string | null;
+
+  bio: string | null;
+  expertise: string[] | null;
+  achievements: string[] | null;
+  projects: string[] | null;
+  location: string | null;
+  availability: string | null;
+
+  website: string | null;
+  twitter: string | null;
+  github: string | null;
+  linkedin: string | null;
 }
 
 const validCategories: TeamCategory[] = [
@@ -51,7 +77,17 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
       email,
       category,
       discord_id,
-      discord_avatar
+      discord_avatar,
+      bio,
+      expertise,
+      achievements,
+      projects,
+      location,
+      availability,
+      website,
+      twitter,
+      github,
+      linkedin
     `)
     .order('display_order', { ascending: true });
 
@@ -60,7 +96,9 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
     throw new Error('Unable to load team members.');
   }
 
-  return (data as TeamMemberRow[]).flatMap((member) => {
+  const rows = (data ?? []) as unknown as TeamMemberRow[];
+
+  return rows.flatMap((member): TeamMember[] => {
     if (!validCategories.includes(member.category as TeamCategory)) {
       console.warn(`Invalid team category for ${member.name}`);
       return [];
@@ -71,13 +109,26 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
         name: member.name,
         role: member.role,
         initials: member.initials,
-        description: member.description,
+        description: member.description ?? '',
         skills: member.skills ?? [],
         accent: member.accent,
         email: member.email,
         category: member.category as TeamCategory,
+
         discordId: member.discord_id ?? '',
-        discordAvatar: member.discord_avatar ?? ''
+        discordAvatar: member.discord_avatar ?? '',
+
+        bio: member.bio,
+        expertise: member.expertise ?? [],
+        achievements: member.achievements ?? [],
+        projects: member.projects ?? [],
+        location: member.location,
+        availability: member.availability,
+
+        website: member.website,
+        twitter: member.twitter,
+        github: member.github,
+        linkedin: member.linkedin
       }
     ];
   });
