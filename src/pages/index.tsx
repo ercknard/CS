@@ -14,6 +14,9 @@ import {
 
 import { alpha, useTheme } from '@mui/material/styles';
 
+import AOS from 'aos';
+import 'aos/dist/aos.css';
+
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import NorthEastRoundedIcon from '@mui/icons-material/NorthEastRounded';
 import CodeRoundedIcon from '@mui/icons-material/CodeRounded';
@@ -363,6 +366,46 @@ export default function Home() {
 
   const [sectionsLoaded, setSectionsLoaded] = React.useState(false);
 
+  /**
+   * Initialize AOS once and refresh when page content changes.
+   */
+  React.useEffect(() => {
+    const prefersReducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    );
+
+    AOS.init({
+      duration: 800,
+      easing: 'ease-out-cubic',
+      once: true,
+      offset: 80,
+      delay: 0,
+      anchorPlacement: 'top-bottom',
+      disable: () => prefersReducedMotion.matches
+    });
+
+    AOS.refreshHard();
+
+    return () => {
+      // Do not globally destroy AOS because other components may use it.
+    };
+  }, []);
+
+  /**
+   * Refresh AOS after Supabase section visibility has been loaded.
+   */
+  React.useEffect(() => {
+    if (!sectionsLoaded) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      AOS.refreshHard();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [sectionsLoaded, sectionVisibility]);
+
   React.useEffect(() => {
     let isMounted = true;
 
@@ -444,55 +487,6 @@ export default function Home() {
     }
   ];
 
-  /*
-   * Keep section dividers only between sections that are visible.
-   */
-  const contentSections: {
-    key: HomeSectionKey;
-    component: React.ReactNode;
-  }[] = [
-    {
-      key: 'about',
-      component: <AboutUs />
-    },
-    {
-      key: 'services',
-      component: <Services />
-    },
-    {
-      key: 'security',
-      component: <SecurityServices />
-    },
-    {
-      key: 'projects',
-      component: <Projects />
-    },
-    {
-      key: 'game_servers',
-      component: <GameServers />
-    },
-    {
-      key: 'team',
-      component: <Team />
-    },
-    {
-      key: 'github',
-      component: <GithubSection />
-    },
-    {
-      key: 'faqs',
-      component: <FAQs />
-    },
-    {
-      key: 'contact',
-      component: <ContactUsPage />
-    }
-  ];
-
-  const visibleContentSections = contentSections.filter(({ key }) =>
-    isSectionVisible(key)
-  );
-
   return (
     <>
       <Head>
@@ -510,6 +504,8 @@ export default function Home() {
       {isSectionVisible('hero') && (
         <Box
           component="main"
+          data-aos="fade-in"
+          data-aos-duration="700"
           sx={{
             position: 'relative',
             isolation: 'isolate',
@@ -579,6 +575,8 @@ export default function Home() {
             >
               {/* Hero copy */}
               <Stack
+                data-aos="fade-up"
+                data-aos-duration="900"
                 spacing={{ xs: 2.5, md: 3 }}
                 sx={{ position: 'relative', zIndex: 1, maxWidth: 760 }}
               >
@@ -611,6 +609,8 @@ export default function Home() {
 
                 <Typography
                   component="h1"
+                  data-aos="fade-up"
+                  data-aos-delay="100"
                   sx={{
                     fontSize: {
                       xs: 'clamp(2.65rem, 10vw, 4rem)',
@@ -639,6 +639,8 @@ export default function Home() {
                 </Typography>
 
                 <Typography
+                  data-aos="fade-up"
+                  data-aos-delay="200"
                   sx={{
                     maxWidth: 555,
                     color: textSecondary,
@@ -652,6 +654,8 @@ export default function Home() {
                 </Typography>
 
                 <Stack
+                  data-aos="fade-up"
+                  data-aos-delay="300"
                   direction={{ xs: 'column', sm: 'row' }}
                   spacing={1.5}
                   sx={{
@@ -703,6 +707,8 @@ export default function Home() {
                 />
 
                 <Stack
+                  data-aos="fade-up"
+                  data-aos-delay="400"
                   direction="row"
                   spacing={2.5}
                   useFlexGap
@@ -739,6 +745,9 @@ export default function Home() {
 
               {/* Hero visual */}
               <Box
+                data-aos="zoom-in"
+                data-aos-delay="200"
+                data-aos-duration="1000"
                 sx={{
                   position: 'relative',
                   width: '100%',
@@ -945,6 +954,8 @@ export default function Home() {
 
                 {/* Floating information card */}
                 <Paper
+                  data-aos="fade-up"
+                  data-aos-delay="500"
                   elevation={0}
                   sx={{
                     position: 'absolute',
@@ -1011,6 +1022,9 @@ export default function Home() {
                 {services.map((service, index) => (
                   <Stack
                     key={service.title}
+                    data-aos="fade-up"
+                    data-aos-delay={index * 150}
+                    data-aos-duration="700"
                     direction="row"
                     spacing={1.5}
                     sx={{
@@ -1069,19 +1083,25 @@ export default function Home() {
 
       {/* TOP MARQUEE */}
       {isSectionVisible('marquee_top') && (
-        <>
+        <Box data-aos="fade-up" data-aos-duration="800">
           <HomeMarquee />
-        </>
+        </Box>
       )}
 
       {/* ABOUT */}
-      {isSectionVisible('about') && <AboutUs />}
+      {isSectionVisible('about') && (
+        <Box data-aos="fade-up" data-aos-duration="800">
+          <AboutUs />
+        </Box>
+      )}
 
       {/* SERVICES */}
       {isSectionVisible('services') && (
         <>
           <SectionDivider />
-          <Services />
+          <Box data-aos="fade-up" data-aos-duration="800">
+            <Services />
+          </Box>
         </>
       )}
 
@@ -1089,7 +1109,9 @@ export default function Home() {
       {isSectionVisible('marquee_mid') && (
         <>
           <SectionDivider />
-          <HomeMarquee />
+          <Box data-aos="fade-right" data-aos-duration="800">
+            <HomeMarquee />
+          </Box>
         </>
       )}
 
@@ -1097,7 +1119,9 @@ export default function Home() {
       {isSectionVisible('security') && (
         <>
           <SectionDivider />
-          <SecurityServices />
+          <Box data-aos="fade-right" data-aos-duration="800">
+            <SecurityServices />
+          </Box>
         </>
       )}
 
@@ -1105,7 +1129,9 @@ export default function Home() {
       {isSectionVisible('projects') && (
         <>
           <SectionDivider />
-          <Projects />
+          <Box data-aos="fade-up" data-aos-duration="800">
+            <Projects />
+          </Box>
         </>
       )}
 
@@ -1113,7 +1139,9 @@ export default function Home() {
       {isSectionVisible('game_servers') && (
         <>
           <SectionDivider />
-          <GameServers />
+          <Box data-aos="fade-left" data-aos-duration="800">
+            <GameServers />
+          </Box>
         </>
       )}
 
@@ -1121,7 +1149,9 @@ export default function Home() {
       {isSectionVisible('team') && (
         <>
           <SectionDivider />
-          <Team />
+          <Box data-aos="fade-up" data-aos-duration="800">
+            <Team />
+          </Box>
         </>
       )}
 
@@ -1129,7 +1159,9 @@ export default function Home() {
       {isSectionVisible('github') && (
         <>
           <SectionDivider />
-          <GithubSection />
+          <Box data-aos="zoom-in-up" data-aos-duration="800">
+            <GithubSection />
+          </Box>
         </>
       )}
 
@@ -1137,7 +1169,9 @@ export default function Home() {
       {isSectionVisible('faqs') && (
         <>
           <SectionDivider />
-          <FAQs />
+          <Box data-aos="fade-up" data-aos-duration="800">
+            <FAQs />
+          </Box>
         </>
       )}
 
@@ -1145,7 +1179,9 @@ export default function Home() {
       {isSectionVisible('contact') && (
         <>
           <SectionDivider />
-          <ContactUsPage />
+          <Box data-aos="fade-up" data-aos-duration="900">
+            <ContactUsPage />
+          </Box>
         </>
       )}
 
@@ -1153,7 +1189,9 @@ export default function Home() {
       {isSectionVisible('footer') && (
         <>
           <SectionDivider />
-          <Footer />
+          <Box data-aos="fade-up" data-aos-duration="800">
+            <Footer />
+          </Box>
         </>
       )}
     </>
