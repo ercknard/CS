@@ -1572,8 +1572,8 @@ export default function Services({
 
                     <Typography
                       id="service-modal-title"
-                      component="h2"
-                      variant="h2"
+                      component="h3"
+                      variant="h3"
                       sx={{
                         maxWidth: 620,
                         fontWeight: 850,
